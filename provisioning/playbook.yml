@@ -942,7 +942,7 @@
     - name: Add internal lab host mappings to Windows hosts file
       ansible.builtin.raw: |
         powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$path = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'; $entry = '{{ item.ip }} {{ item.name }}'; if (-not (Select-String -Path $path -SimpleMatch $entry -Quiet)) { Add-Content -Path $path -Value $entry; Write-Output 'CHANGED' } else { Write-Output 'EXISTS' }"
-      loop: "{{ internal_lab_hosts }}"
+      loop: "{{ lab_hosts }}"
       register: windows_hosts_mapping
       changed_when: "'CHANGED' in windows_hosts_mapping.stdout"
 
