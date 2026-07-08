@@ -940,11 +940,11 @@
       when: windows_hostname.reboot_required
 
     - name: Add internal lab host mappings to Windows hosts file
-      ansible.windows.win_lineinfile:
-        path: C:\Windows\System32\drivers\etc\hosts
-        line: "{{ item.ip }} {{ item.name }} {{ item.alias }}"
-        create: true
-      loop: "{{ lab_hosts }}"
+      ansible.builtin.raw: |
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$path = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'; $entry = '{{ item.ip }} {{ item.name }}'; if (-not (Select-String -Path $path -SimpleMatch $entry -Quiet)) { Add-Content -Path $path -Value $entry; Write-Output 'CHANGED' } else { Write-Output 'EXISTS' }"
+      loop: "{{ internal_lab_hosts }}"
+      register: windows_hosts_mapping
+      changed_when: "'CHANGED' in windows_hosts_mapping.stdout"
 
     - name: Enable ICMP echo replies for host discovery
       ansible.windows.win_shell: |
