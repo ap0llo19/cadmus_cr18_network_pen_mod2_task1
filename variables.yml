@@ -1,0 +1,4 @@
+# APG variables. This lab does not require generated flags or secrets.
+# The goal is discovery, scanning, enumeration, banner grabbing, NSE usage,
+# and reporting only.
+{}
