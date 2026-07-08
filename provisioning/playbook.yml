@@ -110,7 +110,7 @@
 # ----------------------------------------------------------------------------
 # PENTESTVM - trainee workstation
 # ----------------------------------------------------------------------------
-- name: Provision pentestvm
+- name: Provision pentestvm (attacker)
   hosts: pentestvm
   become: true
   gather_facts: true
@@ -133,12 +133,8 @@
           - telnet
           - netcat-openbsd
           - dnsutils
-          - whois
-          - traceroute
           - curl
-          - wget
           - openssl
-          - jq
           - mariadb-client
           - postgresql-client
           - freerdp2-x11
