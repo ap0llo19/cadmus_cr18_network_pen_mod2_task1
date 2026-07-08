@@ -1,4 +1,4 @@
-name: cadmus-module2-internal-scanning
+name: cr18_n2c_lab1_v1
 hosts:
   - name: pentestvm
     flavor: standard.small
