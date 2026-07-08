@@ -1,4 +1,4 @@
-name: cr18_n2c_lab1_v1
+name: cr18-n2c-lab1-v1
 hosts:
   - name: pentestvm
     flavor: standard.small
