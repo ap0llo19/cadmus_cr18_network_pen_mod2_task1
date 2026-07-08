@@ -1,0 +1,1137 @@
+---
+
+# CADMUS Module 2: Discovery, Scanning & Enumeration
+# Internal scanning assessment
+#
+# Scope:
+#   - No exploitation
+#   - No brute forcing
+#   - No privilege escalation
+#   - Discovery, scanning, service enumeration, banner grabbing, NSE scripts,
+#     SMB/SNMP/RDP/SSH/FTP/SMTP enumeration, and reporting only.
+#
+# Lab hosts:
+#   pentestvm  192.168.56.10  trainee workstation
+#   WEB01      192.168.56.20  web services
+#   DEV01      192.168.56.21  SSH/FTP/Git/dev portal
+#   MAIL01     192.168.56.22  SMTP/IMAP/POP3
+#   DB01       192.168.56.23  MariaDB/PostgreSQL
+#   MON01      192.168.56.24  SNMP/monitoring services
+#   FILE01     192.168.56.25  Windows SMB/RDP file server
+#   WS01       192.168.56.26  Windows SMB/RDP workstation
+
+# ----------------------------------------------------------------------------
+# Common baseline
+# ----------------------------------------------------------------------------
+- name: Common baseline for all lab machines
+  hosts: pentestvm:web01:dev01:mail01:db01:mon01
+  become: true
+  gather_facts: true
+
+  vars:
+    lab_domain: cadmus.local
+    lab_hosts:
+      - { ip: "192.168.56.10", name: "pentestvm", alias: "PENTESTVM pentest" }
+      - { ip: "192.168.56.20", name: "web01", alias: "WEB01 web01.cadmus.local" }
+      - { ip: "192.168.56.21", name: "dev01", alias: "DEV01 dev01.cadmus.local" }
+      - { ip: "192.168.56.22", name: "mail01", alias: "MAIL01 mail01.cadmus.local" }
+      - { ip: "192.168.56.23", name: "db01", alias: "DB01 db01.cadmus.local" }
+      - { ip: "192.168.56.24", name: "mon01", alias: "MON01 mon01.cadmus.local" }
+      - { ip: "192.168.56.25", name: "file01", alias: "FILE01 file01.cadmus.local" }
+      - { ip: "192.168.56.26", name: "ws01", alias: "WS01 ws01.cadmus.local" }
+
+  handlers:
+    - name: Restart SSH
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted
+
+  tasks:
+    - name: Disable and mask unattended-upgrades
+      ansible.builtin.systemd:
+        name: unattended-upgrades
+        state: stopped
+        enabled: false
+        masked: true
+      failed_when: false
+
+    - name: Wait for any apt/dpkg lock to release
+      ansible.builtin.shell: >
+        while fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock
+        /var/cache/apt/archives/lock /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 3; done
+      changed_when: false
+      failed_when: false
+
+    - name: Install common packages
+      ansible.builtin.apt:
+        name:
+          - openssh-server
+          - python3
+          - curl
+        state: present
+        update_cache: true
+
+    - name: Set system hostname
+      ansible.builtin.hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Add internal lab host mappings
+      ansible.builtin.blockinfile:
+        path: /etc/hosts
+        marker: "# {mark} CADMUS MODULE 2 INTERNAL HOSTS"
+        block: |
+          {% for item in lab_hosts %}
+          {{ item.ip }} {{ item.name }} {{ item.alias }}
+          {% endfor %}
+
+    - name: Configure SSH login banner
+      ansible.builtin.copy:
+        dest: /etc/issue.net
+        mode: '0644'
+        content: |
+          CADMUS Module 2 Internal Assessment
+          Host: {{ inventory_hostname | upper }}
+          Authorized enumeration training environment only.
+
+    - name: Enable SSH banner
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Banner'
+        line: 'Banner /etc/issue.net'
+      notify: Restart SSH
+
+    - name: Ensure SSH is running
+      ansible.builtin.systemd:
+        name: ssh
+        state: started
+        enabled: true
+
+
+# ----------------------------------------------------------------------------
+# PENTESTVM - trainee workstation
+# ----------------------------------------------------------------------------
+- name: Provision pentestvm
+  hosts: pentestvm
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: user-access
+      user_access_username: pentester
+      user_access_password: 'pentester'
+      user_access_sudo: true
+
+  tasks:
+    - name: Install scanning and enumeration tools
+      ansible.builtin.apt:
+        name:
+          - arp-scan
+          - nmap
+          - smbclient
+          - snmp
+          - ftp
+          - telnet
+          - netcat-openbsd
+          - dnsutils
+          - whois
+          - traceroute
+          - curl
+          - wget
+          - openssl
+          - jq
+          - mariadb-client
+          - postgresql-client
+          - freerdp2-x11
+        state: present
+        update_cache: true
+
+    - name: Create trainee working directories
+      ansible.builtin.file:
+        path: "/home/pentester/{{ item }}"
+        state: directory
+        owner: pentester
+        group: pentester
+        mode: '0755'
+      loop:
+        - Desktop
+        - Desktop/module2-internal
+        - Desktop/module2-internal/scans
+        - Desktop/module2-internal/evidence
+
+    - name: Add scope file
+      ansible.builtin.copy:
+        dest: /home/pentester/Desktop/module2-internal/scope.txt
+        owner: pentester
+        group: pentester
+        mode: '0644'
+        content: |
+          CADMUS Module 2 - Internal Scanning Assessment
+
+          Authorized scope:
+          - Network: 192.168.56.0/24
+          - Targets: WEB01, DEV01, MAIL01, DB01, MON01, FILE01, WS01
+          - Attacker workstation: pentestvm / 192.168.56.10
+
+          Rules:
+          - Discovery, scanning, enumeration, banner grabbing, NSE scripts, and reporting are allowed.
+          - Exploitation, brute forcing, password attacks, privilege escalation, malware, and destructive testing are not allowed.
+          - Document open ports, services, versions, interesting banners, NSE findings, and recommended next steps.
+
+    - name: Add report template
+      ansible.builtin.copy:
+        dest: /home/pentester/Desktop/module2-internal/report-template.md
+        owner: pentester
+        group: pentester
+        mode: '0644'
+        content: |
+          # CADMUS Module 2 - Internal Scanning Report
+
+          ## 1. Scope
+          - Network:
+          - Date:
+          - Analyst:
+
+          ## 2. Host Discovery
+          | IP Address | Hostname | Discovery Method | Notes |
+          |---|---|---|---|
+
+          ## 3. Port and Service Enumeration
+          | Host | Open Ports | Service Versions | Notes |
+          |---|---|---|---|
+
+          ## 4. NSE Script Results
+          | Host | Script Category / Script | Key Result |
+          |---|---|---|
+
+          ## 5. Service-Specific Enumeration
+          ### HTTP / HTTPS
+          ### SSH
+          ### FTP
+          ### SMTP / IMAP / POP3
+          ### SMB
+          ### SNMP
+          ### RDP
+          ### Databases
+
+          ## 6. Findings and Observations
+          | Finding | Affected Host(s) | Evidence | Risk / Impact |
+          |---|---|---|---|
+
+          ## 7. Recommended Next Steps
+          -
+
+    - name: Add safe command examples
+      ansible.builtin.copy:
+        dest: /home/pentester/Desktop/module2-internal/safe-enumeration-examples.txt
+        owner: pentester
+        group: pentester
+        mode: '0644'
+        content: |
+          # Discovery
+          ip addr
+          ping -c 1 192.168.56.20
+          nmap -sn 192.168.56.0/24 -oA scans/01-host-discovery
+
+          # Initial TCP scan
+          nmap -sS --top-ports 1000 192.168.56.20-26 -oA scans/02-top-tcp
+
+          # Version detection and default scripts
+          nmap -sV -sC 192.168.56.20-26 -oA scans/03-version-default
+
+          # Full TCP port scan
+          nmap -p- --min-rate 5000 192.168.56.20-26 -oA scans/04-full-tcp
+
+          # UDP checks for SNMP
+          nmap -sU -p 161 --script snmp-info 192.168.56.24 -oA scans/05-snmp
+
+          # HTTP enumeration examples
+          nmap -p 80,443,8080,3000,9100 --script http-title,http-headers,http-server-header,http-robots.txt 192.168.56.20-26
+          curl -I http://192.168.56.20/
+
+          # SMB/RDP enumeration examples against Windows targets
+          nmap -p 139,445 --script smb-protocols,smb-os-discovery,smb-enum-shares 192.168.56.25,192.168.56.26
+          nmap -p 3389 --script rdp-enum-encryption,rdp-ntlm-info 192.168.56.25,192.168.56.26
+          smbclient -L //192.168.56.25 -U cadmus_enum%Enum2026!
+
+          # SMTP enumeration examples
+          nmap -p 25,110,143,587 --script smtp-commands,pop3-capabilities,imap-capabilities 192.168.56.22
+
+          # Banner grabbing examples
+          nc -nv 192.168.56.21 21
+          nc -nv 192.168.56.22 25
+          openssl s_client -connect 192.168.56.20:443 -servername web01.cadmus.local
+
+
+# ----------------------------------------------------------------------------
+# WEB01 - HTTP/HTTPS target
+# ----------------------------------------------------------------------------
+- name: Provision WEB01
+  hosts: web01
+  become: true
+  gather_facts: true
+
+  handlers:
+    - name: Restart Apache
+      ansible.builtin.systemd:
+        name: apache2
+        state: restarted
+
+  tasks:
+    - name: Install Apache and OpenSSL
+      ansible.builtin.apt:
+        name:
+          - apache2
+          - openssl
+        state: present
+        update_cache: true
+
+    - name: Enable Apache modules
+      ansible.builtin.command: "a2enmod {{ item }}"
+      loop:
+        - ssl
+        - headers
+      register: apache_modules
+      changed_when: "'already enabled' not in apache_modules.stdout"
+      notify: Restart Apache
+
+    - name: Configure Apache service tokens for banner grabbing
+      ansible.builtin.copy:
+        dest: /etc/apache2/conf-available/cadmus-banner.conf
+        mode: '0644'
+        content: |
+          ServerName web01.cadmus.local
+          ServerTokens Full
+          ServerSignature On
+          Header always set X-CADMUS-Asset "WEB01"
+      notify: Restart Apache
+
+    - name: Enable Apache banner configuration
+      ansible.builtin.command: a2enconf cadmus-banner
+      register: apache_conf
+      changed_when: "'already enabled' not in apache_conf.stdout"
+      notify: Restart Apache
+
+    - name: Create WEB01 web directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      loop:
+        - /var/www/html/status
+        - /var/www/html/assets
+
+    - name: Deploy WEB01 index page
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+        content: |
+          <!doctype html>
+          <html>
+          <head><title>WEB01 - Customer Portal</title></head>
+          <body>
+            <h1>WEB01 Customer Portal</h1>
+            <p>Internal training web service for CADMUS Module 2.</p>
+            <p>Environment: internal assessment range</p>
+          </body>
+          </html>
+
+    - name: Deploy WEB01 status page
+      ansible.builtin.copy:
+        dest: /var/www/html/status/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+        content: |
+          <!doctype html>
+          <html>
+          <head><title>WEB01 - Service Status</title></head>
+          <body>
+            <h1>WEB01 Service Status</h1>
+            <ul>
+              <li>HTTP: online</li>
+              <li>HTTPS: online</li>
+              <li>Owner: Web Operations</li>
+            </ul>
+          </body>
+          </html>
+
+    - name: Deploy robots.txt
+      ansible.builtin.copy:
+        dest: /var/www/html/robots.txt
+        owner: www-data
+        group: www-data
+        mode: '0644'
+        content: |
+          User-agent: *
+          Disallow: /status/
+          Disallow: /assets/
+
+    - name: Create self-signed certificate for WEB01
+      ansible.builtin.command: >
+        openssl req -x509 -nodes -newkey rsa:2048 -days 3650
+        -subj /CN=web01.cadmus.local/O=CADMUS-Training/OU=Module-2
+        -keyout /etc/ssl/private/web01.key
+        -out /etc/ssl/certs/web01.crt
+      args:
+        creates: /etc/ssl/certs/web01.crt
+      notify: Restart Apache
+
+    - name: Configure HTTPS virtual host
+      ansible.builtin.copy:
+        dest: /etc/apache2/sites-available/default-ssl.conf
+        mode: '0644'
+        content: |
+          <IfModule mod_ssl.c>
+            <VirtualHost _default_:443>
+              ServerAdmin webops@cadmus.local
+              ServerName web01.cadmus.local
+              DocumentRoot /var/www/html
+              ErrorLog ${APACHE_LOG_DIR}/web01_ssl_error.log
+              CustomLog ${APACHE_LOG_DIR}/web01_ssl_access.log combined
+              SSLEngine on
+              SSLCertificateFile /etc/ssl/certs/web01.crt
+              SSLCertificateKeyFile /etc/ssl/private/web01.key
+            </VirtualHost>
+          </IfModule>
+      notify: Restart Apache
+
+    - name: Enable HTTPS site
+      ansible.builtin.command: a2ensite default-ssl
+      register: apache_ssl_site
+      changed_when: "'already enabled' not in apache_ssl_site.stdout"
+      notify: Restart Apache
+
+    - name: Ensure Apache is running
+      ansible.builtin.systemd:
+        name: apache2
+        state: started
+        enabled: true
+
+
+# ----------------------------------------------------------------------------
+# DEV01 - SSH, FTP, Git, and dev portal target
+# ----------------------------------------------------------------------------
+- name: Provision DEV01
+  hosts: dev01
+  become: true
+  gather_facts: true
+
+  handlers:
+    - name: Restart vsftpd
+      ansible.builtin.systemd:
+        name: vsftpd
+        state: restarted
+
+    - name: Restart git-daemon
+      ansible.builtin.systemd:
+        name: git-daemon-cadmus
+        state: restarted
+        daemon_reload: true
+
+    - name: Restart dev portal
+      ansible.builtin.systemd:
+        name: dev-portal
+        state: restarted
+        daemon_reload: true
+
+  tasks:
+    - name: Install DEV01 packages
+      ansible.builtin.apt:
+        name:
+          - vsftpd
+          - git
+        state: present
+        update_cache: true
+
+    - name: Create FTP root
+      ansible.builtin.file:
+        path: /srv/ftp
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Add FTP readme
+      ansible.builtin.copy:
+        dest: /srv/ftp/README.txt
+        mode: '0644'
+        content: |
+          DEV01 anonymous FTP archive.
+          This service is intentionally available for enumeration practice.
+          No sensitive production data is stored here.
+
+    - name: Configure vsftpd for anonymous read-only access
+      ansible.builtin.copy:
+        dest: /etc/vsftpd.conf
+        mode: '0644'
+        content: |
+          listen=YES
+          listen_ipv6=NO
+          anonymous_enable=YES
+          no_anon_password=YES
+          anon_root=/srv/ftp
+          local_enable=NO
+          write_enable=NO
+          anon_upload_enable=NO
+          anon_mkdir_write_enable=NO
+          dirmessage_enable=YES
+          use_localtime=YES
+          xferlog_enable=YES
+          connect_from_port_20=YES
+          secure_chroot_dir=/var/run/vsftpd/empty
+          pam_service_name=vsftpd
+          rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+          rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+          ssl_enable=NO
+          ftpd_banner=DEV01 FTP service - CADMUS development archive
+      notify: Restart vsftpd
+
+    - name: Create Git repository directory
+      ansible.builtin.file:
+        path: /srv/git/web-inventory.git
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Initialize bare Git repository
+      ansible.builtin.command: git init --bare /srv/git/web-inventory.git
+      args:
+        creates: /srv/git/web-inventory.git/HEAD
+
+    - name: Mark Git repository as exportable
+      ansible.builtin.file:
+        path: /srv/git/web-inventory.git/git-daemon-export-ok
+        state: touch
+        mode: '0644'
+
+    - name: Set Git repository description
+      ansible.builtin.copy:
+        dest: /srv/git/web-inventory.git/description
+        mode: '0644'
+        content: WEB01 inventory repository for internal enumeration training
+
+    - name: Create git-daemon systemd unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/git-daemon-cadmus.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=CADMUS Git Daemon
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/git daemon --listen=0.0.0.0 --port=9418 --reuseaddr --base-path=/srv/git --export-all --informative-errors --verbose
+          Restart=always
+          User=nobody
+          Group=nogroup
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart git-daemon
+
+    - name: Create development portal directory
+      ansible.builtin.file:
+        path: /srv/dev-portal
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Deploy development portal page
+      ansible.builtin.copy:
+        dest: /srv/dev-portal/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+        content: |
+          <!doctype html>
+          <html>
+          <head><title>DEV01 - Development Portal</title></head>
+          <body>
+            <h1>DEV01 Development Portal</h1>
+            <p>Internal build and test service.</p>
+            <p>Expected services: SSH, FTP, Git, HTTP development portal.</p>
+          </body>
+          </html>
+
+    - name: Create dev portal systemd unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/dev-portal.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=DEV01 Simple Development Portal
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/python3 -m http.server 8080 --bind 0.0.0.0 --directory /srv/dev-portal
+          Restart=always
+          User=www-data
+          Group=www-data
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart dev portal
+
+    - name: Ensure DEV01 services are running
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+        daemon_reload: true
+      loop:
+        - vsftpd
+        - git-daemon-cadmus
+        - dev-portal
+
+
+# ----------------------------------------------------------------------------
+# MAIL01 - SMTP, submission, IMAP, POP3 target
+# ----------------------------------------------------------------------------
+- name: Provision MAIL01
+  hosts: mail01
+  become: true
+  gather_facts: true
+
+  handlers:
+    - name: Restart Postfix
+      ansible.builtin.systemd:
+        name: postfix
+        state: restarted
+
+    - name: Restart Dovecot
+      ansible.builtin.systemd:
+        name: dovecot
+        state: restarted
+
+  tasks:
+    - name: Preseed Postfix mail type
+      ansible.builtin.debconf:
+        name: postfix
+        question: postfix/main_mailer_type
+        value: 'Internet Site'
+        vtype: select
+
+    - name: Preseed Postfix mail name
+      ansible.builtin.debconf:
+        name: postfix
+        question: postfix/mailname
+        value: mail01.cadmus.local
+        vtype: string
+
+    - name: Install mail services
+      ansible.builtin.apt:
+        name:
+          - postfix
+          - dovecot-imapd
+          - dovecot-pop3d
+          - mailutils
+        state: present
+        update_cache: true
+
+    - name: Configure Postfix main settings
+      ansible.builtin.command: "postconf -e '{{ item }}'"
+      loop:
+        - 'myhostname = mail01.cadmus.local'
+        - 'mydomain = cadmus.local'
+        - 'myorigin = /etc/mailname'
+        - 'inet_interfaces = all'
+        - 'inet_protocols = ipv4'
+        - 'smtpd_banner = MAIL01 ESMTP Postfix - CADMUS internal mail gateway'
+        - 'disable_vrfy_command = no'
+      changed_when: true
+      notify: Restart Postfix
+
+    - name: Enable SMTP submission listener
+      ansible.builtin.blockinfile:
+        path: /etc/postfix/master.cf
+        marker: "# {mark} CADMUS SUBMISSION SERVICE"
+        block: |
+          submission inet n       -       y       -       -       smtpd
+      notify: Restart Postfix
+
+    - name: Configure Dovecot protocols
+      ansible.builtin.lineinfile:
+        path: /etc/dovecot/dovecot.conf
+        regexp: '^#?protocols ='
+        line: 'protocols = imap pop3'
+      notify: Restart Dovecot
+
+    - name: Configure Dovecot listener
+      ansible.builtin.lineinfile:
+        path: /etc/dovecot/dovecot.conf
+        regexp: '^#?listen ='
+        line: 'listen = *'
+      notify: Restart Dovecot
+
+    - name: Allow plaintext auth for visible training protocol banners
+      ansible.builtin.lineinfile:
+        path: /etc/dovecot/conf.d/10-auth.conf
+        regexp: '^#?disable_plaintext_auth ='
+        line: 'disable_plaintext_auth = no'
+      notify: Restart Dovecot
+
+    - name: Ensure MAIL01 services are running
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop:
+        - postfix
+        - dovecot
+
+
+# ----------------------------------------------------------------------------
+# DB01 - database services target
+# ----------------------------------------------------------------------------
+- name: Provision DB01
+  hosts: db01
+  become: true
+  gather_facts: true
+
+  handlers:
+    - name: Restart MariaDB
+      ansible.builtin.systemd:
+        name: mariadb
+        state: restarted
+
+    - name: Restart PostgreSQL
+      ansible.builtin.systemd:
+        name: postgresql
+        state: restarted
+
+  tasks:
+    - name: Install database services
+      ansible.builtin.apt:
+        name:
+          - mariadb-server
+          - postgresql
+        state: present
+        update_cache: true
+
+    - name: Configure MariaDB to listen on the internal network
+      ansible.builtin.lineinfile:
+        path: /etc/mysql/mariadb.conf.d/50-server.cnf
+        regexp: '^bind-address\s*='
+        line: 'bind-address = 0.0.0.0'
+      notify: Restart MariaDB
+
+    - name: Ensure MariaDB is running before creating training database
+      ansible.builtin.systemd:
+        name: mariadb
+        state: started
+        enabled: true
+
+    - name: Create MariaDB training database
+      ansible.builtin.command: mysql -e "CREATE DATABASE IF NOT EXISTS inventory;"
+      changed_when: false
+
+    - name: Locate PostgreSQL configuration directory
+      ansible.builtin.shell: "ls -d /etc/postgresql/*/main | head -n 1"
+      register: pg_conf_dir
+      changed_when: false
+
+    - name: Configure PostgreSQL to listen on the internal network
+      ansible.builtin.lineinfile:
+        path: "{{ pg_conf_dir.stdout }}/postgresql.conf"
+        regexp: '^#?listen_addresses\s*='
+        line: "listen_addresses = '*'"
+      notify: Restart PostgreSQL
+
+    - name: Add PostgreSQL training network rule
+      ansible.builtin.lineinfile:
+        path: "{{ pg_conf_dir.stdout }}/pg_hba.conf"
+        line: 'host    all             all             192.168.56.0/24          scram-sha-256'
+        insertafter: EOF
+      notify: Restart PostgreSQL
+
+    - name: Ensure PostgreSQL is running
+      ansible.builtin.systemd:
+        name: postgresql
+        state: started
+        enabled: true
+
+    - name: Add DB01 service note
+      ansible.builtin.copy:
+        dest: /opt/db01-services.txt
+        mode: '0644'
+        content: |
+          DB01 internal database server.
+          Expected exposed services for enumeration:
+          - MariaDB on TCP/3306
+          - PostgreSQL on TCP/5432
+          This host is for service identification and reporting only.
+
+
+# ----------------------------------------------------------------------------
+# MON01 - SNMP and monitoring services target
+# ----------------------------------------------------------------------------
+- name: Provision MON01
+  hosts: mon01
+  become: true
+  gather_facts: true
+
+  handlers:
+    - name: Restart SNMPD
+      ansible.builtin.systemd:
+        name: snmpd
+        state: restarted
+
+    - name: Restart monitoring dashboard
+      ansible.builtin.systemd:
+        name: monitoring-dashboard
+        state: restarted
+        daemon_reload: true
+
+    - name: Restart metrics service
+      ansible.builtin.systemd:
+        name: node-metrics-training
+        state: restarted
+        daemon_reload: true
+
+  tasks:
+    - name: Install SNMP service
+      ansible.builtin.apt:
+        name:
+          - snmpd
+        state: present
+        update_cache: true
+
+    - name: Configure SNMP read-only community for enumeration
+      ansible.builtin.copy:
+        dest: /etc/snmp/snmpd.conf
+        mode: '0644'
+        content: |
+          agentAddress udp:161
+          rocommunity public 192.168.56.0/24
+          sysLocation CADMUS Internal Monitoring Segment - MON01
+          sysContact noc@cadmus.local
+          sysServices 72
+      notify: Restart SNMPD
+
+    - name: Create monitoring app directory
+      ansible.builtin.file:
+        path: /opt/mon01
+        state: directory
+        mode: '0755'
+
+    - name: Deploy monitoring dashboard app
+      ansible.builtin.copy:
+        dest: /opt/mon01/dashboard.py
+        mode: '0644'
+        content: |
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+
+          class Handler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  self.send_response(200)
+                  self.send_header("Content-Type", "text/html")
+                  self.send_header("X-CADMUS-Asset", "MON01")
+                  self.end_headers()
+                  self.wfile.write(b"""<!doctype html>
+          <html><head><title>MON01 - Monitoring Dashboard</title></head>
+          <body><h1>MON01 Monitoring Dashboard</h1>
+          <p>Internal monitoring interface for enumeration practice.</p>
+          <p>SNMP community configured for read-only monitoring.</p>
+          </body></html>""")
+
+          HTTPServer(("0.0.0.0", 3000), Handler).serve_forever()
+
+    - name: Deploy metrics endpoint app
+      ansible.builtin.copy:
+        dest: /opt/mon01/metrics.py
+        mode: '0644'
+        content: |
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+
+          METRICS = b"""# HELP cadmus_training_service_info Training metric for service discovery
+          # TYPE cadmus_training_service_info gauge
+          cadmus_training_service_info{host=\"MON01\",service=\"node-metrics-training\"} 1
+          node_cpu_seconds_total{cpu=\"0\",mode=\"idle\"} 12345
+          node_memory_MemAvailable_bytes 536870912
+          """
+
+          class Handler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  self.send_response(200)
+                  self.send_header("Content-Type", "text/plain; version=0.0.4")
+                  self.send_header("X-CADMUS-Asset", "MON01")
+                  self.end_headers()
+                  self.wfile.write(METRICS)
+
+          HTTPServer(("0.0.0.0", 9100), Handler).serve_forever()
+
+    - name: Create monitoring dashboard service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/monitoring-dashboard.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=MON01 Monitoring Dashboard
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/python3 /opt/mon01/dashboard.py
+          Restart=always
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart monitoring dashboard
+
+    - name: Create metrics service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/node-metrics-training.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=MON01 Training Metrics Endpoint
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/python3 /opt/mon01/metrics.py
+          Restart=always
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart metrics service
+
+    - name: Ensure MON01 services are running
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+        daemon_reload: true
+      loop:
+        - snmpd
+        - monitoring-dashboard
+        - node-metrics-training
+
+
+# ----------------------------------------------------------------------------
+# Windows baseline - FILE01 and WS01
+# ----------------------------------------------------------------------------
+- name: Common Windows baseline for SMB/RDP targets
+  hosts: file01:ws01
+  gather_facts: true
+
+  vars:
+    lab_hosts:
+      - { ip: "192.168.56.10", name: "pentestvm", alias: "PENTESTVM pentest" }
+      - { ip: "192.168.56.20", name: "web01", alias: "WEB01 web01.cadmus.local" }
+      - { ip: "192.168.56.21", name: "dev01", alias: "DEV01 dev01.cadmus.local" }
+      - { ip: "192.168.56.22", name: "mail01", alias: "MAIL01 mail01.cadmus.local" }
+      - { ip: "192.168.56.23", name: "db01", alias: "DB01 db01.cadmus.local" }
+      - { ip: "192.168.56.24", name: "mon01", alias: "MON01 mon01.cadmus.local" }
+      - { ip: "192.168.56.25", name: "file01", alias: "FILE01 file01.cadmus.local" }
+      - { ip: "192.168.56.26", name: "ws01", alias: "WS01 ws01.cadmus.local" }
+
+  tasks:
+    - name: Set Windows computer name
+      ansible.windows.win_hostname:
+        name: "{{ inventory_hostname | upper }}"
+      register: windows_hostname
+
+    - name: Reboot Windows host if hostname changed
+      ansible.windows.win_reboot:
+        reboot_timeout: 900
+      when: windows_hostname.reboot_required
+
+    - name: Add internal lab host mappings to Windows hosts file
+      ansible.windows.win_lineinfile:
+        path: C:\Windows\System32\drivers\etc\hosts
+        line: "{{ item.ip }} {{ item.name }} {{ item.alias }}"
+        create: true
+      loop: "{{ lab_hosts }}"
+
+    - name: Enable ICMP echo replies for host discovery
+      ansible.windows.win_shell: |
+        Enable-NetFirewallRule -Name FPS-ICMP4-ERQ-In -ErrorAction SilentlyContinue
+        Enable-NetFirewallRule -DisplayGroup "File and Printer Sharing" -ErrorAction SilentlyContinue
+      changed_when: false
+
+    - name: Enable Remote Desktop service and firewall rules
+      ansible.windows.win_shell: |
+        Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
+        Set-Service -Name TermService -StartupType Automatic
+        Start-Service -Name TermService
+      changed_when: false
+
+    - name: Configure SMB service for enumeration
+      ansible.windows.win_shell: |
+        Set-Service -Name LanmanServer -StartupType Automatic
+        Start-Service -Name LanmanServer
+        Set-SmbServerConfiguration -EnableSMB1Protocol $false -EnableSMB2Protocol $true -AnnounceServer $true -ServerHidden $false -Force
+      changed_when: false
+
+    - name: Create low-privileged SMB enumeration user
+      ansible.windows.win_user:
+        name: cadmus_enum
+        password: Enum2026!
+        description: CADMUS Module 2 credentialed enumeration account
+        password_never_expires: true
+        user_cannot_change_password: true
+        state: present
+        groups:
+          - Users
+
+    - name: Create restricted file-share user
+      ansible.windows.win_user:
+        name: finance_auditor
+        password: Finance2026!
+        description: Restricted share account for FILE01 enumeration context
+        password_never_expires: true
+        user_cannot_change_password: true
+        state: present
+        groups:
+          - Users
+
+
+# ----------------------------------------------------------------------------
+# FILE01 - Windows SMB and RDP file server target
+# ----------------------------------------------------------------------------
+- name: Provision FILE01 Windows services
+  hosts: file01
+  gather_facts: true
+
+  tasks:
+    - name: Create FILE01 SMB share structure
+      ansible.windows.win_shell: |
+        $shares = @("C:\Shares", "C:\Shares\Public", "C:\Shares\IT", "C:\Shares\Finance")
+        foreach ($sharePath in $shares) {
+          if (!(Test-Path $sharePath)) {
+            New-Item -ItemType Directory -Path $sharePath | Out-Null
+          }
+        }
+
+        Set-Content -Path "C:\Shares\Public\README.txt" -Value @"
+        FILE01 public share.
+        This share is intentionally readable for SMB enumeration practice.
+        "@
+
+        Set-Content -Path "C:\Shares\IT\asset-register.txt" -Value @"
+        Asset register summary:
+        WEB01  - web services
+        DEV01  - development services
+        MAIL01 - mail gateway
+        DB01   - database services
+        MON01  - monitoring services
+        FILE01 - Windows file services
+        WS01   - Windows workstation services
+        "@
+
+        Set-Content -Path "C:\Shares\Finance\finance-share-notice.txt" -Value @"
+        Restricted finance share.
+        Trainees should identify the share and access restrictions, not bypass them.
+        "@
+      changed_when: false
+
+    - name: Configure FILE01 NTFS permissions
+      ansible.windows.win_shell: |
+        icacls "C:\Shares\Public" /inheritance:e /grant "Everyone:(OI)(CI)RX" /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
+        icacls "C:\Shares\IT" /inheritance:e /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
+        icacls "C:\Shares\Finance" /inheritance:r /grant "Administrators:(OI)(CI)F" /grant "finance_auditor:(OI)(CI)RX" /T | Out-Null
+      changed_when: false
+
+    - name: Create FILE01 SMB shares
+      ansible.windows.win_shell: |
+        $definitions = @(
+          @{ Name = "Public";  Path = "C:\Shares\Public";  Description = "FILE01 public read-only share";       Read = "Everyone" },
+          @{ Name = "IT";      Path = "C:\Shares\IT";      Description = "FILE01 IT asset register share";    Read = "cadmus_enum" },
+          @{ Name = "Finance"; Path = "C:\Shares\Finance"; Description = "FILE01 restricted finance share";    Read = "finance_auditor" }
+        )
+
+        foreach ($share in $definitions) {
+          $existing = Get-SmbShare -Name $share.Name -ErrorAction SilentlyContinue
+          if (-not $existing) {
+            New-SmbShare -Name $share.Name -Path $share.Path -ReadAccess $share.Read -Description $share.Description | Out-Null
+          } else {
+            Set-SmbShare -Name $share.Name -Description $share.Description -Force | Out-Null
+          }
+        }
+      changed_when: false
+
+    - name: Add FILE01 enumeration note
+      ansible.windows.win_copy:
+        dest: C:\CADMUS_FILE01_SCOPE.txt
+        content: |
+          CADMUS Module 2 - FILE01
+          Windows Server 2019 SMB/RDP target.
+          Expected enumeration areas:
+          - TCP/445 SMB service discovery
+          - SMB protocol and OS discovery NSE scripts
+          - Share listing with the provided cadmus_enum account
+          - TCP/3389 RDP service identification and RDP NSE scripts
+
+
+# ----------------------------------------------------------------------------
+# WS01 - Windows SMB and RDP workstation target
+# ----------------------------------------------------------------------------
+- name: Provision WS01 Windows services
+  hosts: ws01
+  gather_facts: true
+
+  tasks:
+    - name: Create WS01 SMB share structure
+      ansible.windows.win_shell: |
+        $shares = @("C:\Shares", "C:\Shares\Shared", "C:\Shares\Users")
+        foreach ($sharePath in $shares) {
+          if (!(Test-Path $sharePath)) {
+            New-Item -ItemType Directory -Path $sharePath | Out-Null
+          }
+        }
+
+        Set-Content -Path "C:\Shares\Shared\workstation-info.txt" -Value @"
+        WS01 workstation share.
+        This host is included so trainees can distinguish workstation-like SMB/RDP exposure from server-like exposure.
+        "@
+
+        Set-Content -Path "C:\Shares\Users\desktop.ini" -Value @"
+        [ViewState]
+        Mode=
+        Vid=
+        FolderType=Generic
+        "@
+      changed_when: false
+
+    - name: Configure WS01 NTFS permissions
+      ansible.windows.win_shell: |
+        icacls "C:\Shares\Shared" /inheritance:e /grant "Everyone:(OI)(CI)RX" /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
+        icacls "C:\Shares\Users" /inheritance:e /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
+      changed_when: false
+
+    - name: Create WS01 SMB shares
+      ansible.windows.win_shell: |
+        $definitions = @(
+          @{ Name = "Shared"; Path = "C:\Shares\Shared"; Description = "WS01 shared workstation folder"; Read = "Everyone" },
+          @{ Name = "Users";  Path = "C:\Shares\Users";  Description = "WS01 user profile style folder"; Read = "cadmus_enum" }
+        )
+
+        foreach ($share in $definitions) {
+          $existing = Get-SmbShare -Name $share.Name -ErrorAction SilentlyContinue
+          if (-not $existing) {
+            New-SmbShare -Name $share.Name -Path $share.Path -ReadAccess $share.Read -Description $share.Description | Out-Null
+          } else {
+            Set-SmbShare -Name $share.Name -Description $share.Description -Force | Out-Null
+          }
+        }
+      changed_when: false
+
+    - name: Add WS01 enumeration note
+      ansible.windows.win_copy:
+        dest: C:\CADMUS_WS01_SCOPE.txt
+        content: |
+          CADMUS Module 2 - WS01
+          Windows Server 2019 workstation-like SMB/RDP target.
+          Expected enumeration areas:
+          - TCP/445 SMB service discovery
+          - Difference between server-like and workstation-like SMB exposure
+          - Share listing with the provided cadmus_enum account
+          - TCP/3389 RDP service identification and RDP NSE scripts
