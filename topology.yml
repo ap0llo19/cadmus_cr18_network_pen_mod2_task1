@@ -56,7 +56,7 @@ hosts:
       mgmt_protocol: winrm
     hidden: true
     volumes:
-      - size: 35
+      - size: 45
       - size: 5
 
   - name: ws01
