@@ -1,0 +1,84 @@
+name: cr-18-n2c-CTF1-v1
+hosts:
+  - name: pentestvm
+    flavor: standard.small
+    base_box:
+      image: ubuntu-noble-x86_64
+      mgmt_user: ubuntu
+      mgmt_protocol: ssh
+    hidden: false
+  - name: target1
+    flavor: standard.small
+    base_box:
+      image: ubuntu-noble-x86_64
+      mgmt_user: ubuntu
+      mgmt_protocol: ssh
+    hidden: true
+  - name: target2
+    flavor: standard.small
+    base_box:
+      image: ubuntu-noble-x86_64
+      mgmt_user: ubuntu
+      mgmt_protocol: ssh
+    hidden: true
+  - name: target3
+    flavor: standard.small
+    base_box:
+      image: ubuntu-noble-x86_64
+      mgmt_user: ubuntu
+      mgmt_protocol: ssh
+    hidden: true
+  - name: target4
+    flavor: standard.small
+    base_box:
+      image: ubuntu-noble-x86_64
+      mgmt_user: ubuntu
+      mgmt_protocol: ssh
+    hidden: true
+  - name: target5
+    flavor: standard.small
+    base_box:
+      image: ubuntu-noble-x86_64
+      mgmt_user: ubuntu
+      mgmt_protocol: ssh
+    hidden: true
+routers:
+  - name: router
+    flavor: standard.small
+    base_box:
+      image: debian-12-x86_64
+      mgmt_user: debian
+      mgmt_protocol: ssh
+    hidden: false
+networks:
+  - name: lan
+    cidr: 192.168.0.0/24
+    accessible_by_user: true
+    hidden: false
+wan:
+  name: internet-connection
+  cidr: 10.10.10.0/24
+net_mappings:
+  - host: pentestvm
+    network: lan
+    ip: 192.168.0.2
+  - host: target1
+    network: lan
+    ip: 192.168.0.58
+  - host: target2
+    network: lan
+    ip: 192.168.0.127
+  - host: target3
+    network: lan
+    ip: 192.168.0.186
+  - host: target4
+    network: lan
+    ip: 192.168.0.201
+  - host: target5
+    network: lan
+    ip: 192.168.0.247
+router_mappings:
+  - router: router
+    network: lan
+    ip: 192.168.0.1
+groups: []
