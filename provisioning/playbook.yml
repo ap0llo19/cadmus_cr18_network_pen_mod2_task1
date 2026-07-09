@@ -973,7 +973,7 @@
     - name: Create low-privileged SMB enumeration user
       ansible.windows.win_user:
         name: cadmus_enum
-        password: Enum2026!
+        password: "BlueTeam!2026"
         description: CADMUS Module 2 credentialed enumeration account
         password_never_expires: true
         user_cannot_change_password: true
@@ -984,7 +984,7 @@
     - name: Create restricted file-share user
       ansible.windows.win_user:
         name: finance_auditor
-        password: Finance2026!
+        password: "ShareView!2026"
         description: Restricted share account for FILE01 enumeration context
         password_never_expires: true
         user_cannot_change_password: true
