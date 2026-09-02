@@ -888,15 +888,33 @@
     - name: Enable ICMP echo replies for host discovery
       ansible.windows.win_shell: |
         Enable-NetFirewallRule -Name FPS-ICMP4-ERQ-In -ErrorAction SilentlyContinue
-        Enable-NetFirewallRule -DisplayGroup "File and Printer Sharing" -ErrorAction SilentlyContinue
       changed_when: false
 
-    - name: Enable Remote Desktop service and firewall rules
+    - name: Configure Windows enumeration firewall rules
       ansible.windows.win_shell: |
-        Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
-        Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
-        Set-Service -Name TermService -StartupType Automatic
-        Start-Service -Name TermService
+        $rules = @(
+          @{ Name = "CADMUS-RPC-135";   Port = 135 },
+          @{ Name = "CADMUS-SMB-445";   Port = 445 },
+          @{ Name = "CADMUS-WINRM-5985"; Port = 5985 }
+        )
+
+        foreach ($rule in $rules) {
+          if (-not (Get-NetFirewallRule -DisplayName $rule.Name -ErrorAction SilentlyContinue)) {
+            New-NetFirewallRule `
+              -DisplayName $rule.Name `
+              -Direction Inbound `
+              -Protocol TCP `
+              -LocalPort $rule.Port `
+              -RemoteAddress 192.168.56.0/24 `
+              -Action Allow | Out-Null
+          }
+        }
+      changed_when: false
+
+    - name: Ensure WinRM is running
+      ansible.windows.win_shell: |
+        Set-Service -Name WinRM -StartupType Automatic
+        Start-Service -Name WinRM
       changed_when: false
 
     - name: Configure SMB service for enumeration
@@ -937,6 +955,19 @@
   gather_facts: true
 
   tasks:
+    - name: Enable Remote Desktop on FILE01
+      ansible.windows.win_shell: |
+        Set-ItemProperty `
+          -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
+          -Name "fDenyTSConnections" `
+          -Value 0
+
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
+
+        Set-Service -Name TermService -StartupType Automatic
+        Start-Service -Name TermService
+      changed_when: false
+
     - name: Create FILE01 SMB share structure
       ansible.windows.win_shell: |
         $shares = @("C:\Shares", "C:\Shares\Public", "C:\Shares\IT", "C:\Shares\Finance")
@@ -998,12 +1029,14 @@
         dest: C:\CADMUS_FILE01_SCOPE.txt
         content: |
           CADMUS Module 2 - FILE01
-          Windows Server 2019 SMB/RDP target.
+          Windows Server 2019 enumeration target.
           Expected enumeration areas:
-          - TCP/445 SMB service discovery
+          - TCP/135 MS RPC Endpoint Mapper
+          - TCP/445 SMB service discovery and enumeration
           - SMB protocol and OS discovery NSE scripts
           - Share listing with the provided cadmus_enum account
           - TCP/3389 RDP service identification and RDP NSE scripts
+          - TCP/5985 WinRM service identification
 
 
 # ----------------------------------------------------------------------------
@@ -1014,6 +1047,19 @@
   gather_facts: true
 
   tasks:
+    - name: Ensure Remote Desktop is disabled on WS01
+      ansible.windows.win_shell: |
+        Set-ItemProperty `
+          -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
+          -Name "fDenyTSConnections" `
+          -Value 1
+
+        Disable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
+
+        Stop-Service -Name TermService -Force -ErrorAction SilentlyContinue
+        Set-Service -Name TermService -StartupType Disabled
+      changed_when: false
+
     - name: Create WS01 SMB share structure
       ansible.windows.win_shell: |
         $shares = @("C:\Shares", "C:\Shares\Shared", "C:\Shares\Users")
@@ -1064,9 +1110,10 @@
         dest: C:\CADMUS_WS01_SCOPE.txt
         content: |
           CADMUS Module 2 - WS01
-          Windows Server 2019 workstation-like SMB/RDP target.
+          Windows 10 workstation enumeration target.
           Expected enumeration areas:
-          - TCP/445 SMB service discovery
+          - TCP/135 MS RPC Endpoint Mapper
+          - TCP/445 SMB service discovery and enumeration
           - Difference between server-like and workstation-like SMB exposure
           - Share listing with the provided cadmus_enum account
-          - TCP/3389 RDP service identification and RDP NSE scripts
+          - TCP/5985 WinRM service identification
