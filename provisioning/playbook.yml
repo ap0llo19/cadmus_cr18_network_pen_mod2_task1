@@ -587,7 +587,7 @@
 
 
 # ----------------------------------------------------------------------------
-# MAIL01 - SMTP, submission, IMAP, POP3 target
+# MAIL01 - SMTP target
 # ----------------------------------------------------------------------------
 - name: Provision MAIL01
   hosts: mail01
@@ -598,11 +598,6 @@
     - name: Restart Postfix
       ansible.builtin.systemd:
         name: postfix
-        state: restarted
-
-    - name: Restart Dovecot
-      ansible.builtin.systemd:
-        name: dovecot
         state: restarted
 
   tasks:
@@ -620,13 +615,10 @@
         value: mail01.cadmus.local
         vtype: string
 
-    - name: Install mail services
+    - name: Install SMTP service
       ansible.builtin.apt:
         name:
           - postfix
-          - dovecot-imapd
-          - dovecot-pop3d
-          - mailutils
         state: present
         update_cache: true
 
@@ -643,43 +635,11 @@
       changed_when: true
       notify: Restart Postfix
 
-    - name: Enable SMTP submission listener
-      ansible.builtin.blockinfile:
-        path: /etc/postfix/master.cf
-        marker: "# {mark} CADMUS SUBMISSION SERVICE"
-        block: |
-          submission inet n       -       y       -       -       smtpd
-      notify: Restart Postfix
-
-    - name: Configure Dovecot protocols
-      ansible.builtin.lineinfile:
-        path: /etc/dovecot/dovecot.conf
-        regexp: '^#?protocols ='
-        line: 'protocols = imap pop3'
-      notify: Restart Dovecot
-
-    - name: Configure Dovecot listener
-      ansible.builtin.lineinfile:
-        path: /etc/dovecot/dovecot.conf
-        regexp: '^#?listen ='
-        line: 'listen = *'
-      notify: Restart Dovecot
-
-    - name: Allow plaintext auth for visible training protocol banners
-      ansible.builtin.lineinfile:
-        path: /etc/dovecot/conf.d/10-auth.conf
-        regexp: '^#?disable_plaintext_auth ='
-        line: 'disable_plaintext_auth = no'
-      notify: Restart Dovecot
-
-    - name: Ensure MAIL01 services are running
+    - name: Ensure Postfix is running
       ansible.builtin.systemd:
-        name: "{{ item }}"
+        name: postfix
         state: started
         enabled: true
-      loop:
-        - postfix
-        - dovecot
 
 
 # ----------------------------------------------------------------------------
