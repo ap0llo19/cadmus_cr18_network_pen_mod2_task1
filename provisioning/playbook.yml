@@ -11,14 +11,14 @@
 #     SMB/SNMP/RDP/SSH/FTP/SMTP enumeration, and reporting only.
 #
 # Lab hosts:
-#   pentestvm  192.168.56.10  trainee workstation
-#   WEB01      192.168.56.58  web services
-#   DEV01      192.168.56.75  SSH/FTP/Git/dev portal
-#   MAIL01     192.168.56.127  SMTP/IMAP/POP3
-#   DB01       192.168.56.152  MariaDB/PostgreSQL
+#   pentestvm  192.168.56.10   trainee workstation
+#   WEB01      192.168.56.58   HTTP/HTTPS web server
+#   DEV01      192.168.56.75   SSH/FTP/Git/development portal
+#   MAIL01     192.168.56.127  SMTP mail server
+#   DB01       192.168.56.152  PostgreSQL database server
 #   MON01      192.168.56.186  SNMP/monitoring services
-#   FILE01     192.168.56.201  Windows SMB/RDP file server
-#   WS01       192.168.56.247  Windows SMB/RDP workstation
+#   FILE01     192.168.56.201  Windows MSRPC/SMB/RDP/WinRM file server
+#   WS01       192.168.56.247  Windows MSRPC/SMB/WinRM workstation
 
 # ----------------------------------------------------------------------------
 # Common baseline
@@ -135,7 +135,6 @@
           - dnsutils
           - curl
           - openssl
-          - mariadb-client
           - postgresql-client
           - freerdp2-x11
         state: present
@@ -203,11 +202,13 @@
           ### HTTP / HTTPS
           ### SSH
           ### FTP
-          ### SMTP / IMAP / POP3
-          ### SMB
+          ### SMTP
+          ### PostgreSQL
           ### SNMP
+          ### SMB
+          ### MS RPC
           ### RDP
-          ### Databases
+          ### WinRM
 
           ## 6. Findings and Observations
           | Finding | Affected Host(s) | Evidence | Risk / Impact |
@@ -225,37 +226,52 @@
         content: |
           # Discovery
           ip addr
-          ping -c 1 192.168.56.20
+          arp-scan --localnet
           nmap -sn 192.168.56.0/24 -oA scans/01-host-discovery
 
           # Initial TCP scan
-          nmap -sS --top-ports 1000 192.168.56.20-26 -oA scans/02-top-tcp
+          nmap -sS --top-ports 1000 192.168.56.58 192.168.56.75 192.168.56.127 192.168.56.152 192.168.56.186 192.168.56.201 192.168.56.247 -oA scans/02-top-tcp
 
           # Version detection and default scripts
-          nmap -sV -sC 192.168.56.20-26 -oA scans/03-version-default
+          nmap -sV -sC 192.168.56.58 192.168.56.75 192.168.56.127 192.168.56.152 192.168.56.186 192.168.56.201 192.168.56.247 -oA scans/03-version-default
 
           # Full TCP port scan
-          nmap -p- --min-rate 5000 192.168.56.20-26 -oA scans/04-full-tcp
+          nmap -p- 192.168.56.58 192.168.56.75 192.168.56.127 192.168.56.152 192.168.56.186 192.168.56.201 192.168.56.247 -oA scans/04-full-tcp
 
-          # UDP checks for SNMP
-          nmap -sU -p 161 --script snmp-info 192.168.56.24 -oA scans/05-snmp
+          # UDP check for SNMP
+          nmap -sU -p 161 --script snmp-info 192.168.56.186 -oA scans/05-snmp
 
-          # HTTP enumeration examples
-          nmap -p 80,443,8080,3000,9100 --script http-title,http-headers,http-server-header,http-robots.txt 192.168.56.20-26
-          curl -I http://192.168.56.20/
+          # HTTP / HTTPS enumeration
+          nmap -sV -p 80,443 --script http-title,http-headers,http-server-header,http-robots.txt 192.168.56.58
+          nmap -sV -p 8080 --script http-title,http-headers 192.168.56.75
+          nmap -sV -p 3000,9100 --script http-title,http-headers 192.168.56.186
+          curl -I http://192.168.56.58/
+          openssl s_client -connect 192.168.56.58:443 -servername web01.cadmus.local
 
-          # SMB/RDP enumeration examples against Windows targets
-          nmap -p 139,445 --script smb-protocols,smb-os-discovery,smb-enum-shares 192.168.56.25,192.168.56.26
-          nmap -p 3389 --script rdp-enum-encryption,rdp-ntlm-info 192.168.56.25,192.168.56.26
-          smbclient -L //192.168.56.25 -U cadmus_enum%Enum2026!
+          # FTP enumeration
+          nmap -sV -p 21 --script ftp-anon,ftp-syst 192.168.56.75
+          nc -nv 192.168.56.75 21
 
-          # SMTP enumeration examples
-          nmap -p 25,110,143,587 --script smtp-commands,pop3-capabilities,imap-capabilities 192.168.56.22
+          # SMTP enumeration
+          nmap -sV -p 25 --script smtp-commands 192.168.56.127
+          nc -nv 192.168.56.127 25
 
-          # Banner grabbing examples
-          nc -nv 192.168.56.21 21
-          nc -nv 192.168.56.22 25
-          openssl s_client -connect 192.168.56.20:443 -servername web01.cadmus.local
+          # PostgreSQL identification
+          nmap -sV -p 5432 192.168.56.152
+
+          # SMB enumeration
+          nmap -p 445 --script smb-protocols,smb-os-discovery,smb-enum-shares 192.168.56.201 192.168.56.247
+          smbclient -L //192.168.56.201 -U 'cadmus_enum%BlueTeam!2026'
+          smbclient -L //192.168.56.247 -U 'cadmus_enum%BlueTeam!2026'
+
+          # MS RPC and WinRM identification
+          nmap -sV -p 135,5985 192.168.56.201 192.168.56.247
+
+          # RDP enumeration - FILE01 only
+          nmap -p 3389 --script rdp-enum-encryption,rdp-ntlm-info 192.168.56.201
+
+          # SNMP enumeration
+          snmpwalk -v2c -c public 192.168.56.186 1.3.6.1.2.1
 
 
 # ----------------------------------------------------------------------------
@@ -849,7 +865,7 @@
 # ----------------------------------------------------------------------------
 # Windows baseline - FILE01 and WS01
 # ----------------------------------------------------------------------------
-- name: Common Windows baseline for SMB/RDP targets
+- name: Common Windows baseline for enumeration targets
   hosts: file01:ws01
   gather_facts: true
 
@@ -948,7 +964,7 @@
 
 
 # ----------------------------------------------------------------------------
-# FILE01 - Windows SMB and RDP file server target
+# FILE01 - Windows file server enumeration target
 # ----------------------------------------------------------------------------
 - name: Provision FILE01 Windows services
   hosts: file01
@@ -1040,7 +1056,7 @@
 
 
 # ----------------------------------------------------------------------------
-# WS01 - Windows SMB and RDP workstation target
+# WS01 - Windows workstation enumeration target
 # ----------------------------------------------------------------------------
 - name: Provision WS01 Windows services
   hosts: ws01
@@ -1071,7 +1087,7 @@
 
         Set-Content -Path "C:\Shares\Shared\workstation-info.txt" -Value @"
         WS01 workstation share.
-        This host is included so trainees can distinguish workstation-like SMB/RDP exposure from server-like exposure.
+        This host is included so trainees can distinguish workstation-like Windows service exposure from server-like exposure.
         "@
 
         Set-Content -Path "C:\Shares\Users\desktop.ini" -Value @"
