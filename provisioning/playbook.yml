@@ -643,7 +643,7 @@
 
 
 # ----------------------------------------------------------------------------
-# DB01 - database services target
+# DB01 - PostgreSQL database target
 # ----------------------------------------------------------------------------
 - name: Provision DB01
   hosts: db01
@@ -651,41 +651,18 @@
   gather_facts: true
 
   handlers:
-    - name: Restart MariaDB
-      ansible.builtin.systemd:
-        name: mariadb
-        state: restarted
-
     - name: Restart PostgreSQL
       ansible.builtin.systemd:
         name: postgresql
         state: restarted
 
   tasks:
-    - name: Install database services
+    - name: Install PostgreSQL
       ansible.builtin.apt:
         name:
-          - mariadb-server
           - postgresql
         state: present
         update_cache: true
-
-    - name: Configure MariaDB to listen on the internal network
-      ansible.builtin.lineinfile:
-        path: /etc/mysql/mariadb.conf.d/50-server.cnf
-        regexp: '^bind-address\s*='
-        line: 'bind-address = 0.0.0.0'
-      notify: Restart MariaDB
-
-    - name: Ensure MariaDB is running before creating training database
-      ansible.builtin.systemd:
-        name: mariadb
-        state: started
-        enabled: true
-
-    - name: Create MariaDB training database
-      ansible.builtin.command: mysql -e "CREATE DATABASE IF NOT EXISTS inventory;"
-      changed_when: false
 
     - name: Locate PostgreSQL configuration directory
       ansible.builtin.shell: "ls -d /etc/postgresql/*/main | head -n 1"
@@ -718,8 +695,7 @@
         mode: '0644'
         content: |
           DB01 internal database server.
-          Expected exposed services for enumeration:
-          - MariaDB on TCP/3306
+          Expected exposed service for enumeration:
           - PostgreSQL on TCP/5432
           This host is for service identification and reporting only.
 
