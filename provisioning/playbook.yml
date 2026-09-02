@@ -12,13 +12,13 @@
 #
 # Lab hosts:
 #   pentestvm  192.168.56.10  trainee workstation
-#   WEB01      192.168.56.20  web services
-#   DEV01      192.168.56.21  SSH/FTP/Git/dev portal
-#   MAIL01     192.168.56.22  SMTP/IMAP/POP3
-#   DB01       192.168.56.23  MariaDB/PostgreSQL
-#   MON01      192.168.56.24  SNMP/monitoring services
-#   FILE01     192.168.56.25  Windows SMB/RDP file server
-#   WS01       192.168.56.26  Windows SMB/RDP workstation
+#   WEB01      192.168.56.58  web services
+#   DEV01      192.168.56.75  SSH/FTP/Git/dev portal
+#   MAIL01     192.168.56.127  SMTP/IMAP/POP3
+#   DB01       192.168.56.152  MariaDB/PostgreSQL
+#   MON01      192.168.56.186  SNMP/monitoring services
+#   FILE01     192.168.56.201  Windows SMB/RDP file server
+#   WS01       192.168.56.247  Windows SMB/RDP workstation
 
 # ----------------------------------------------------------------------------
 # Common baseline
@@ -32,13 +32,13 @@
     lab_domain: cadmus.local
     lab_hosts:
       - { ip: "192.168.56.10", name: "pentestvm", alias: "PENTESTVM pentest" }
-      - { ip: "192.168.56.20", name: "web01", alias: "WEB01 web01.cadmus.local" }
-      - { ip: "192.168.56.21", name: "dev01", alias: "DEV01 dev01.cadmus.local" }
-      - { ip: "192.168.56.22", name: "mail01", alias: "MAIL01 mail01.cadmus.local" }
-      - { ip: "192.168.56.23", name: "db01", alias: "DB01 db01.cadmus.local" }
-      - { ip: "192.168.56.24", name: "mon01", alias: "MON01 mon01.cadmus.local" }
-      - { ip: "192.168.56.25", name: "file01", alias: "FILE01 file01.cadmus.local" }
-      - { ip: "192.168.56.26", name: "ws01", alias: "WS01 ws01.cadmus.local" }
+      - { ip: "192.168.56.58", name: "web01", alias: "WEB01 web01.cadmus.local" }
+      - { ip: "192.168.56.75", name: "dev01", alias: "DEV01 dev01.cadmus.local" }
+      - { ip: "192.168.56.127", name: "mail01", alias: "MAIL01 mail01.cadmus.local" }
+      - { ip: "192.168.56.152", name: "db01", alias: "DB01 db01.cadmus.local" }
+      - { ip: "192.168.56.186", name: "mon01", alias: "MON01 mon01.cadmus.local" }
+      - { ip: "192.168.56.201", name: "file01", alias: "FILE01 file01.cadmus.local" }
+      - { ip: "192.168.56.247", name: "ws01", alias: "WS01 ws01.cadmus.local" }
 
   handlers:
     - name: Restart SSH
@@ -920,13 +920,13 @@
   vars:
     lab_hosts:
       - { ip: "192.168.56.10", name: "pentestvm", alias: "PENTESTVM pentest" }
-      - { ip: "192.168.56.20", name: "web01", alias: "WEB01 web01.cadmus.local" }
-      - { ip: "192.168.56.21", name: "dev01", alias: "DEV01 dev01.cadmus.local" }
-      - { ip: "192.168.56.22", name: "mail01", alias: "MAIL01 mail01.cadmus.local" }
-      - { ip: "192.168.56.23", name: "db01", alias: "DB01 db01.cadmus.local" }
-      - { ip: "192.168.56.24", name: "mon01", alias: "MON01 mon01.cadmus.local" }
-      - { ip: "192.168.56.25", name: "file01", alias: "FILE01 file01.cadmus.local" }
-      - { ip: "192.168.56.26", name: "ws01", alias: "WS01 ws01.cadmus.local" }
+      - { ip: "192.168.56.58", name: "web01", alias: "WEB01 web01.cadmus.local" }
+      - { ip: "192.168.56.75", name: "dev01", alias: "DEV01 dev01.cadmus.local" }
+      - { ip: "192.168.56.127", name: "mail01", alias: "MAIL01 mail01.cadmus.local" }
+      - { ip: "192.168.56.152", name: "db01", alias: "DB01 db01.cadmus.local" }
+      - { ip: "192.168.56.186", name: "mon01", alias: "MON01 mon01.cadmus.local" }
+      - { ip: "192.168.56.201", name: "file01", alias: "FILE01 file01.cadmus.local" }
+      - { ip: "192.168.56.247", name: "ws01", alias: "WS01 ws01.cadmus.local" }
 
   tasks:
     - name: Set Windows computer name
