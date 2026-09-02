@@ -130,13 +130,10 @@
           - smbclient
           - snmp
           - ftp
-          - telnet
           - netcat-openbsd
-          - dnsutils
           - curl
           - openssl
           - postgresql-client
-          - freerdp2-x11
         state: present
         update_cache: true
 
