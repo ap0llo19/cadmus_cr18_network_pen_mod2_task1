@@ -470,8 +470,7 @@
         mode: '0644'
         content: |
           DEV01 anonymous FTP archive.
-          This service is intentionally available for enumeration practice.
-          No sensitive production data is stored here.
+          FLAG{4n0nym0u5_ftp_3n4bl3d}
 
     - name: Configure vsftpd for anonymous read-only access
       ansible.builtin.copy:
