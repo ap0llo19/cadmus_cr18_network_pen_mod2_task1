@@ -522,6 +522,40 @@
         dest: /srv/git/web-inventory.git/description
         mode: '0644'
         content: WEB01 inventory repository for internal enumeration training
+    
+    - name: Seed Git repository with initial commit
+      ansible.builtin.shell: |
+        set -e
+
+        if ! git --git-dir=/srv/git/web-inventory.git rev-parse --verify refs/heads/main >/dev/null 2>&1; then
+          rm -rf /tmp/web-inventory-seed
+          mkdir -p /tmp/web-inventory-seed
+
+          git init /tmp/web-inventory-seed
+          git -C /tmp/web-inventory-seed config user.name "CADMUS Development"
+          git -C /tmp/web-inventory-seed config user.email "development@cadmus.local"
+
+          cat > /tmp/web-inventory-seed/README.md <<'EOF'
+        # Web Inventory
+
+        Internal WEB01 inventory repository.
+
+        This repository is used by the CADMUS development environment.
+        EOF
+
+          git -C /tmp/web-inventory-seed add README.md
+          git -C /tmp/web-inventory-seed commit -m "Initial inventory commit"
+          git -C /tmp/web-inventory-seed branch -M main
+          git -C /tmp/web-inventory-seed remote add origin /srv/git/web-inventory.git
+          git -C /tmp/web-inventory-seed push origin main
+
+          git --git-dir=/srv/git/web-inventory.git symbolic-ref HEAD refs/heads/main
+
+          rm -rf /tmp/web-inventory-seed
+        fi
+      args:
+        executable: /bin/bash
+      changed_when: false
 
     - name: Create git-daemon systemd unit
       ansible.builtin.copy:
@@ -564,6 +598,7 @@
             <h1>DEV01 Development Portal</h1>
             <p>Internal build and test service.</p>
             <p>Expected services: SSH, FTP, Git, HTTP development portal.</p>
+            <p>Development repository: web-inventory.git</p>
           </body>
           </html>
 
