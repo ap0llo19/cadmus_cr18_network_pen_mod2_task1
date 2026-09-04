@@ -557,6 +557,14 @@
         executable: /bin/bash
       changed_when: false
 
+    - name: Set Git repository ownership for git daemon
+      ansible.builtin.file:
+        path: /srv/git/web-inventory.git
+        owner: nobody
+        group: nogroup
+        mode: '0755'
+        recurse: true
+
     - name: Create git-daemon systemd unit
       ansible.builtin.copy:
         dest: /etc/systemd/system/git-daemon-cadmus.service
