@@ -312,6 +312,9 @@
           ServerTokens Full
           ServerSignature On
           Header always set X-CADMUS-Asset "WEB01"
+          <If "%{SERVER_PORT} == '80'">
+              Header always set Secret-Value "cadmus{h3ad3r_3num3r4t10n}"
+          </If>
       notify: Restart Apache
 
     - name: Enable Apache banner configuration
@@ -378,6 +381,7 @@
           User-agent: *
           Disallow: /status/
           Disallow: /assets/
+          Disallow: /admin/api/parseinfo
 
     - name: Create self-signed certificate for WEB01
       ansible.builtin.command: >
