@@ -840,9 +840,8 @@
         content: |
           from http.server import BaseHTTPRequestHandler, HTTPServer
 
-          METRICS = b"""# HELP cadmus_training_service_info Training metric for service discovery
-          # TYPE cadmus_training_service_info gauge
-          cadmus_training_service_info{host=\"MON01\",service=\"node-metrics-training\"} 1
+          METRICS = b"""
+          cadmus_training_service_info{host=\"MON01\",service=\"node-metrics-training\",info=\"cadmus{m3tr1cs_r3v34l_s3cr3ts}\"} 1
           node_cpu_seconds_total{cpu=\"0\",mode=\"idle\"} 12345
           node_memory_MemAvailable_bytes 536870912
           """
