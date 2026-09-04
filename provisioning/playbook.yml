@@ -474,7 +474,7 @@
         mode: '0644'
         content: |
           DEV01 anonymous FTP archive.
-          FLAG{4n0nym0u5_ftp_3n4bl3d}
+          cadmus{4n0nym0u5_ftp_3n4bl3d}
 
     - name: Configure vsftpd for anonymous read-only access
       ansible.builtin.copy:
