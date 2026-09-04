@@ -1120,7 +1120,12 @@
 
     - name: Create WS01 SMB share structure
       ansible.windows.win_shell: |
-        $shares = @("C:\Shares", "C:\Shares\Shared", "C:\Shares\Users")
+        $shares = @(
+          "C:\Shares",
+          "C:\Shares\Shared",
+          "C:\Shares\Users"
+        )
+
         foreach ($sharePath in $shares) {
           if (!(Test-Path $sharePath)) {
             New-Item -ItemType Directory -Path $sharePath | Out-Null
@@ -1129,7 +1134,7 @@
 
         Set-Content -Path "C:\Shares\Shared\workstation-info.txt" -Value @"
         WS01 workstation share.
-        This host is included so trainees can distinguish workstation-like Windows service exposure from server-like exposure.
+        cadmus{4n0nym0us_smb_4cc3ss}
         "@
 
         Set-Content -Path "C:\Shares\Users\desktop.ini" -Value @"
@@ -1142,25 +1147,92 @@
 
     - name: Configure WS01 NTFS permissions
       ansible.windows.win_shell: |
-        icacls "C:\Shares\Shared" /inheritance:e /grant "Everyone:(OI)(CI)RX" /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
-        icacls "C:\Shares\Users" /inheritance:e /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
+        icacls "C:\Shares\Shared" /inheritance:e `
+          /grant "Everyone:(OI)(CI)RX" `
+          /grant "*S-1-5-7:(OI)(CI)RX" `
+          /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
+
+        icacls "C:\Shares\Users" /inheritance:e `
+          /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
       changed_when: false
 
     - name: Create WS01 SMB shares
       ansible.windows.win_shell: |
         $definitions = @(
-          @{ Name = "Shared"; Path = "C:\Shares\Shared"; Description = "WS01 shared workstation folder"; Read = "Everyone" },
-          @{ Name = "Users";  Path = "C:\Shares\Users";  Description = "WS01 user profile style folder"; Read = "cadmus_enum" }
+          @{
+            Name = "Shared"
+            Path = "C:\Shares\Shared"
+            Description = "WS01 anonymous shared workstation folder"
+            Read = "Everyone"
+          },
+          @{
+            Name = "Users"
+            Path = "C:\Shares\Users"
+            Description = "WS01 authenticated user profile style folder"
+            Read = "cadmus_enum"
+          }
         )
 
         foreach ($share in $definitions) {
           $existing = Get-SmbShare -Name $share.Name -ErrorAction SilentlyContinue
+
           if (-not $existing) {
-            New-SmbShare -Name $share.Name -Path $share.Path -ReadAccess $share.Read -Description $share.Description | Out-Null
-          } else {
-            Set-SmbShare -Name $share.Name -Description $share.Description -Force | Out-Null
+            New-SmbShare `
+              -Name $share.Name `
+              -Path $share.Path `
+              -ReadAccess $share.Read `
+              -Description $share.Description | Out-Null
+          }
+          else {
+            Set-SmbShare `
+              -Name $share.Name `
+              -Description $share.Description `
+              -Force | Out-Null
           }
         }
+      changed_when: false
+
+    - name: Grant anonymous SMB access to WS01 Shared
+      ansible.windows.win_shell: |
+        Grant-SmbShareAccess `
+          -Name "Shared" `
+          -AccountName "ANONYMOUS LOGON" `
+          -AccessRight Read `
+          -Force | Out-Null
+      changed_when: false
+
+    - name: Allow anonymous users to receive Everyone permissions
+      ansible.windows.win_regedit:
+        path: HKLM:\SYSTEM\CurrentControlSet\Control\Lsa
+        name: EveryoneIncludesAnonymous
+        data: 1
+        type: dword
+
+    - name: Permit anonymous enumeration
+      ansible.windows.win_regedit:
+        path: HKLM:\SYSTEM\CurrentControlSet\Control\Lsa
+        name: RestrictAnonymous
+        data: 0
+        type: dword
+
+    - name: Allow Shared as a null-session share
+      ansible.windows.win_regedit:
+        path: HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters
+        name: NullSessionShares
+        data:
+          - Shared
+        type: multistring
+
+    - name: Keep null-session access restricted to explicitly allowed shares
+      ansible.windows.win_regedit:
+        path: HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters
+        name: RestrictNullSessAccess
+        data: 1
+        type: dword
+
+    - name: Restart SMB server service
+      ansible.windows.win_shell: |
+        Restart-Service -Name LanmanServer -Force
       changed_when: false
 
     - name: Add WS01 enumeration note
@@ -1172,6 +1244,7 @@
           Expected enumeration areas:
           - TCP/135 MS RPC Endpoint Mapper
           - TCP/445 SMB service discovery and enumeration
-          - Difference between server-like and workstation-like SMB exposure
-          - Share listing with the provided cadmus_enum account
+          - Anonymous SMB share enumeration
+          - Anonymous access to the Shared share
+          - Comparison of anonymous and authenticated share access
           - TCP/5985 WinRM service identification
