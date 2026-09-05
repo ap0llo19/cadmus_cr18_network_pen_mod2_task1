@@ -1222,6 +1222,14 @@
         data:
           - Shared
         type: multistring
+    
+    - name: Allow anonymous SMB share enumeration through srvsvc
+      ansible.windows.win_regedit:
+        path: HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters
+        name: NullSessionPipes
+        data:
+          - srvsvc
+        type: multistring
 
     - name: Keep null-session access restricted to explicitly allowed shares
       ansible.windows.win_regedit:
