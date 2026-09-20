@@ -1102,10 +1102,13 @@
         data: 1
         type: dword
 
-    - name: Restart SMB server service
-      ansible.windows.win_shell: |
-        Restart-Service -Name LanmanServer -Force
-      changed_when: false
+    # EveryoneIncludesAnonymous and RestrictAnonymous live under Lsa and are
+    # read by LSASS at boot. Restarting LanmanServer reloads the NullSession*
+    # values but not those, so the null session is refused at authentication
+    # before share enumeration is ever reached. Only a reboot applies them.
+    - name: Reboot WS01 so the LSA anonymous-access settings take effect
+      ansible.windows.win_reboot:
+        reboot_timeout: 900
 
     - name: Add WS01 enumeration note
       ansible.windows.win_copy:
