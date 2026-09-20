@@ -1,6 +1,6 @@
 {
   "title" : "CR-18 / Module 2 / N2c — Internal Network Enumeration",
-  "description" : "Sweep a flat internal network from scratch and fingerprint every exposed service across seven undocumented hosts, finishing with a purely enumeration-based flag. Concludes with a short knowledge-check assessment.",
+  "description" : "Sweep a flat internal network from scratch and fingerprint every exposed service across ten undocumented hosts, finishing with a purely enumeration-based flag. Concludes with a short knowledge-check assessment.",
   "prerequisites" : [ "Comfort using a Linux shell", "Basic familiarity with TCP/IP networking (subnets, ports, common services)", "No prior nmap experience required — covered in the background level" ],
   "outcomes" : [ "Perform host discovery and service enumeration across an internal subnet with no prior documentation", "Identify running services and versions using nmap script scanning", "Recognise common service-level misconfigurations (anonymous FTP, anonymous SMB, exposed metrics)", "Enumerate SMB shares without needing to exploit or retrieve anything from them", "Build an accurate asset inventory purely from active scanning" ],
   "state" : "UNRELEASED",
@@ -310,7 +310,7 @@
     "order" : 5,
     "estimated_duration" : 0,
     "minimal_possible_solve_time" : null,
-    "content" : "You've completed the Internal Network Scanning & Enumeration lab. Starting from nothing but a subnet, you built a full picture of seven hosts and found a file share that should never have been reachable without credentials — a straightforward listing command, not an exploit. This kind of gap is one of the most common and most valuable findings in an internal engagement, and it never requires more than careful, thorough enumeration to surface. Head back to the LMS to continue the course."
+    "content" : "You've completed the Internal Network Scanning & Enumeration lab. Starting from nothing but a subnet, you built a full picture of ten hosts and found a file share that should never have been reachable without credentials — a straightforward listing command, not an exploit. This kind of gap is one of the most common and most valuable findings in an internal engagement, and it never requires more than careful, thorough enumeration to surface. Head back to the LMS to continue the course."
   } ],
   "estimated_duration" : 38,
   "variant_sandboxes" : false
