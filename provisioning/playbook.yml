@@ -195,7 +195,7 @@
           ServerSignature On
           Header always set X-CADMUS-Asset "WEB01"
           <If "%{SERVER_PORT} == '80'">
-              Header always set Secret-Value "cadmus{h3ad3r_3num3r4t10n}"
+              Header always set Secret-Value "internal-only-do-not-expose"
           </If>
       notify: Restart Apache
 
@@ -356,7 +356,7 @@
         mode: '0644'
         content: |
           DEV01 anonymous FTP archive.
-          cadmus{4n0nym0u5_ftp_3n4bl3d}
+          {{ ftp_flag }}
 
     - name: Configure vsftpd for anonymous read-only access
       ansible.builtin.copy:
@@ -723,7 +723,7 @@
           from http.server import BaseHTTPRequestHandler, HTTPServer
 
           METRICS = b"""
-          cadmus_training_service_info{host=\"MON01\",service=\"node-metrics-training\",info=\"cadmus{m3tr1cs_r3v34l_s3cr3ts}\"} 1
+          cadmus_training_service_info{host=\"MON01\",service=\"node-metrics-training\",info=\"{{ metrics_flag }}\"} 1
           node_cpu_seconds_total{cpu=\"0\",mode=\"idle\"} 12345
           node_memory_MemAvailable_bytes 536870912
           """
