@@ -1,6 +1,6 @@
 {
   "title" : "CR-18 / Module 2 / N2c — Internal Network Enumeration",
-  "description" : "Sweep a flat internal network from scratch and fingerprint every exposed service across ten undocumented hosts, finishing with a purely enumeration-based flag. Concludes with a short knowledge-check assessment.",
+  "description" : "Sweep a flat internal network from scratch and fingerprint every exposed service across seven undocumented hosts, finishing with a purely enumeration-based flag. Concludes with a short knowledge-check assessment.",
   "prerequisites" : [ "Comfort using a Linux shell", "Basic familiarity with TCP/IP networking (subnets, ports, common services)", "No prior nmap experience required — covered in the background level" ],
   "outcomes" : [ "Perform host discovery and service enumeration across an internal subnet with no prior documentation", "Identify running services and versions using nmap script scanning", "Recognise common service-level misconfigurations (anonymous FTP, anonymous SMB, exposed metrics)", "Enumerate SMB shares without needing to exploit or retrieve anything from them", "Build an accurate asset inventory purely from active scanning" ],
   "state" : "UNRELEASED",
@@ -36,7 +36,7 @@
     "answer" : "Shared",
     "answer_variable_name" : null,
     "content" : "Start from nothing. Build the picture yourself.\n\nYour objectives for this level:\n\n* Identify your own address and the internal subnet you're on.\n* Sweep the subnet and count how many hosts actually respond.\n* Run a full service scan against every host you find and infer each one's likely role purely from the ports and banners it exposes — a web server, a mail server, a database, and so on.\n* One host exposes a file share that can be listed with no credentials at all — no login, no password, nothing. Find it.\n\nSubmit the **name of that share** as your answer for this stage. You only need to list it — you do not need to connect to it or retrieve anything from it.\n\n*Note: the knowledge-check after this level draws on what you observe across every host, not just the one with the exposed share — scan broadly, not just enough to find the flag.*",
-    "solution" : "* Find your subnet — `ip addr` → pentest VM 192.168.56.10 on 192.168.56.0/24.\n* Sweep for hosts — `sudo nmap -sn 192.168.56.0/24` → 10 hosts respond.\n* Scan every host you find — `sudo nmap -sV -sC <ip>` for each address discovered. Two hosts show SMB (port 445) among their services.\n* Check each for anonymous SMB access — `smbclient -L //<ip> -N` on each of the two. One refuses without credentials; the other lists a share called `Shared` with no authentication required at all.\n\n**Answer: Shared**",
+    "solution" : "* Find your subnet — `ip addr` → pentest VM 192.168.56.10 on 192.168.56.0/24.\n* Sweep for hosts — `sudo nmap -sn 192.168.56.0/24` → seven target hosts respond, plus your own workstation and the gateway.\n* Scan every host you find — `sudo nmap -sV -sC <ip>` for each address discovered. Two hosts show SMB (port 445) among their services.\n* Check each for anonymous SMB access — `smbclient -L //<ip> -N` on each of the two. One refuses without credentials; the other lists a share called `Shared` with no authentication required at all.\n\n**Answer: Shared**",
     "solution_penalized" : true,
     "hints" : [ {
       "title" : "Know Where You Stand",
@@ -83,14 +83,14 @@
     "minimal_possible_solve_time" : 5,
     "questions" : [ {
       "question_type" : "MCQ",
-      "text" : "How many hosts responded when you swept the internal subnet (192.168.56.0/24)?",
+      "text" : "Excluding your own workstation and the gateway, how many hosts did your sweep of 192.168.56.0/24 find?",
       "points" : 5,
       "penalty" : 5,
       "order" : 0,
       "answer_required" : true,
       "choices" : [ {
         "text" : "7",
-        "correct" : false,
+        "correct" : true,
         "order" : 0
       }, {
         "text" : "8",
@@ -98,7 +98,7 @@
         "order" : 1
       }, {
         "text" : "10",
-        "correct" : true,
+        "correct" : false,
         "order" : 2
       }, {
         "text" : "12",
@@ -310,7 +310,7 @@
     "order" : 5,
     "estimated_duration" : 0,
     "minimal_possible_solve_time" : null,
-    "content" : "You've completed the Internal Network Scanning & Enumeration lab. Starting from nothing but a subnet, you built a full picture of ten hosts and found a file share that should never have been reachable without credentials — a straightforward listing command, not an exploit. This kind of gap is one of the most common and most valuable findings in an internal engagement, and it never requires more than careful, thorough enumeration to surface. Head back to the LMS to continue the course."
+    "content" : "You've completed the Internal Network Scanning & Enumeration lab. Starting from nothing but a subnet, you built a full picture of seven hosts and found a file share that should never have been reachable without credentials — a straightforward listing command, not an exploit. This kind of gap is one of the most common and most valuable findings in an internal engagement, and it never requires more than careful, thorough enumeration to surface. Head back to the LMS to continue the course."
   } ],
   "estimated_duration" : 43,
   "variant_sandboxes" : false
