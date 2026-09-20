@@ -45,23 +45,39 @@ collection, declared in `provisioning/requirements.yml`.
 
 ## Trainee workflow
 
+Eleven levels, 200 points, roughly 50 minutes. Five graded hands-on levels,
+then a short knowledge check.
+
 1. Console into **pentestvm** as `user` / `Password123`.
-2. Establish position on the network (`ip addr`, `ip route`).
-3. Sweep `192.168.56.0/24` for live hosts.
-4. Fingerprint each one — the default port set is not enough; several services
-   sit on ports a default scan never checks.
-5. List shares on the SMB hosts. One answers without credentials.
-6. Submit the name of that share.
-7. A ten-question knowledge check follows, drawing on findings from across the
-   whole range.
+2. *Background* — locating yourself and sweeping.
+3. **Map the segment** — pick the lab interface out of the two present, sweep
+   it, submit the number of addresses that reply (10: seven targets, the
+   workstation, the gateway, and one the platform itself holds).
+4. *Background* — interrogating services, including the NSE scripts `-sC`
+   does not run.
+5. **Login without a password** — anonymous FTP on dev01.
+6. **Services that ask nothing** — the unauthenticated metrics endpoint on
+   mon01:9100. SNMP on the same host is the same class of finding.
+7. **Ask the right question** — `ssh2-enum-algos` against db01; submit the
+   first cipher the server offers.
+8. **File access with no login** — null-session SMB share listing on ws01.
+9. **Knowledge check** — five questions on web01, mail01, file01 and dev01,
+   all answerable from scan output already produced.
+
+The four middle levels are deliberately one theme: four different ways into a
+system that ask for no credentials at all.
 
 ## Flags
 
-`variables.yml` is empty: this lab uses static answers rather than APG
-variables, because what is being graded is information discovered by scanning
-rather than a planted secret. Two `cadmus{...}` strings are planted as
-assessment answers, on dev01's anonymous FTP root and mon01's metrics endpoint.
-A third sits in a web01 response header and is currently unused.
+`ftp_flag` and `metrics_flag` are APG variables, generated per sandbox and
+templated into dev01's FTP readme and mon01's metrics endpoint, so answers
+cannot be shared between trainees. They are raw generated values — APG cannot
+produce a `cadmus{...}` wrapper, which is why Module 3 dropped it too.
+
+The share name in the final level is fixed at `Shared`: randomising it would
+cost the realism that makes the finding recognisable. The remaining
+`ASSESSMENT_LEVEL` answers are static by necessity — assessment questions
+cannot bind APG variables.
 
 ## Tools used
 
