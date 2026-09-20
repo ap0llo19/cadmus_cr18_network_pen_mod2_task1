@@ -35,7 +35,7 @@ then one play per target:
   only. `pentestvm` is deliberately excluded from that last task: seeding it
   there would hand the trainee the inventory the lab asks them to build.
 - **pentestvm** — installs the scanning toolset and provisions the trainee
-  login `pentester` / `pentester` (sudo) via the `user-access` role.
+  login `user` / `Password123` (sudo) via the `user-access` role.
 - **web01 / dev01 / mail01 / db01 / mon01** — deploy the services above.
 - **file01 / ws01** — set hostnames, configure SMB, and on `ws01` relax the LSA
   registry settings so a null session can list shares.
@@ -45,7 +45,7 @@ collection, declared in `provisioning/requirements.yml`.
 
 ## Trainee workflow
 
-1. Console into **pentestvm** as `pentester` / `pentester`.
+1. Console into **pentestvm** as `user` / `Password123`.
 2. Establish position on the network (`ip addr`, `ip route`).
 3. Sweep `192.168.56.0/24` for live hosts.
 4. Fingerprint each one — the default port set is not enough; several services

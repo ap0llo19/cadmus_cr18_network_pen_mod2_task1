@@ -121,8 +121,8 @@
 
   roles:
     - role: user-access
-      user_access_username: pentester
-      user_access_password: 'pentester'
+      user_access_username: user
+      user_access_password: 'Password123'
       user_access_sudo: true
 
   tasks:
@@ -143,10 +143,10 @@
 
     - name: Create trainee working directories
       ansible.builtin.file:
-        path: "/home/pentester/{{ item }}"
+        path: "/home/user/{{ item }}"
         state: directory
-        owner: pentester
-        group: pentester
+        owner: user
+        group: user
         mode: '0755'
       loop:
         - Desktop
