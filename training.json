@@ -85,7 +85,7 @@
       "question_type" : "MCQ",
       "text" : "Excluding your own workstation and the gateway, how many hosts did your sweep of 192.168.56.0/24 find?",
       "points" : 5,
-      "penalty" : 5,
+      "penalty" : 0,
       "order" : 0,
       "answer_required" : true,
       "choices" : [ {
@@ -157,7 +157,7 @@
       "question_type" : "FFQ",
       "text" : "What is the name of the Git repository exposed on 192.168.56.75's Git service (port 9418)?",
       "points" : 5,
-      "penalty" : 5,
+      "penalty" : 0,
       "order" : 3,
       "answer_required" : true,
       "choices" : [ {
@@ -181,7 +181,7 @@
       "question_type" : "FFQ",
       "text" : "192.168.56.75's FTP service allows anonymous login. What flag did you retrieve from README.txt on that share?",
       "points" : 5,
-      "penalty" : 5,
+      "penalty" : 0,
       "order" : 4,
       "answer_required" : true,
       "choices" : [ {
@@ -221,7 +221,7 @@
       "question_type" : "FFQ",
       "text" : "192.168.56.186 exposes a metrics endpoint on port 9100 with no authentication. What secret value did it leak?",
       "points" : 5,
-      "penalty" : 5,
+      "penalty" : 0,
       "order" : 6,
       "answer_required" : true,
       "choices" : [ {
