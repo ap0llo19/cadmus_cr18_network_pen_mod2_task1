@@ -1,317 +1,429 @@
 {
-  "title" : "CR-18 / Module 2 / N2c — Internal Network Enumeration",
-  "description" : "Sweep a flat internal network from scratch and fingerprint every exposed service across seven undocumented hosts, finishing with a purely enumeration-based flag. Concludes with a short knowledge-check assessment.",
-  "prerequisites" : [ "Comfort using a Linux shell", "Basic familiarity with TCP/IP networking (subnets, ports, common services)", "No prior nmap experience required — covered in the background level" ],
-  "outcomes" : [ "Perform host discovery and service enumeration across an internal subnet with no prior documentation", "Identify running services and versions using nmap script scanning", "Recognise common service-level misconfigurations (anonymous FTP, anonymous SMB, exposed metrics)", "Enumerate SMB shares without needing to exploit or retrieve anything from them", "Build an accurate asset inventory purely from active scanning" ],
-  "state" : "UNRELEASED",
-  "levels" : [ {
-    "title" : "Introduction level",
-    "level_type" : "INFO_LEVEL",
-    "order" : 0,
-    "estimated_duration" : 0,
-    "minimal_possible_solve_time" : null,
-    "content" : "Welcome to the Internal Network Scanning & Enumeration lab.\n\nThe client has asked for an internal asset assessment. Their IT team admits they don't have a reliable, up-to-date inventory of what's actually running on their internal network — no host list, no service map, nothing you can trust. You're building that picture from nothing but your own scanning.\n\nFrom your assessment machine, you'll identify your own position on the network, sweep for live hosts, fingerprint every service each one exposes, and infer each host's role purely from what you find. Along the way, one host will turn out to be more exposed than any reasonable inventory should ever allow — a file share reachable with no credentials at all. Naming that share is your proof that the enumeration is complete.\n\nYou have **30 minutes** for the scanning exercise. A short background level right after you get access covers every tool you'll need if you haven't used them before. A 10-minute knowledge-check follows once you're done — by then you'll already have everything you need to answer it from your own scan output."
-  }, {
-    "title" : "Get Access",
-    "level_type" : "ACCESS_LEVEL",
-    "order" : 1,
-    "estimated_duration" : 0,
-    "minimal_possible_solve_time" : null,
-    "passkey" : "start-training",
-    "cloud_content" : "In the topology panel on the right, right-click **pentestvm** and select **Open Console**. Log in with username **user** and password **Password123**.\n\n\nOnce you're connected, submit the passkey **start-training** to unlock the next level.",
-    "local_content" : "This sandbox has not been validated for local-only deployment."
-  }, {
-    "title" : "Background — scanning tools",
-    "level_type" : "INFO_LEVEL",
-    "order" : 2,
-    "estimated_duration" : 3,
-    "minimal_possible_solve_time" : null,
-    "content" : "No asset list is provided for this exercise — building one is the exercise. Everything below is tool syntax you may need; which tool applies to which host is for you to work out once you start scanning.\n\n## Tools you'll use\n\n**nmap** — the core scanning tool for this exercise.\n\n    sudo nmap -sn <subnet>                # host discovery, no ports touched (sudo matters: an unprivileged sweep cannot use ARP and misses hosts)\n    sudo nmap -sV -sC <target_ip>          # version detection + default scripts, the default deep scan\n    sudo nmap -p <range> <target_ip>       # scan a specific port or range\n    sudo nmap -sU -p <range> <target_ip>   # UDP scan (slower — narrow the port range first)\n    sudo nmap -O <target_ip>               # OS fingerprinting\n    nmap --script <script-name> <target_ip>  # run a specific NSE script, e.g. http-headers, ftp-anon\n\n**curl** — fetch a URL and inspect the raw response, including headers you won't see in a browser easily.\n\n    curl -I http://<target_ip>/            # headers only\n    curl http://<target_ip>:<port>/        # full response body\n\n**ftp** — connect to an FTP service; many misconfigured servers accept the username `anonymous` with any password or a blank one.\n\n**smbclient** — enumerate Windows/Samba file shares. Listing a share does not require connecting to it or downloading anything.\n\n    smbclient -L //<target_ip> -N          # list shares, -N = no password (null session)\n\n**snmpwalk** — query an SNMP-enabled device for system information. Try the default community string `public` if none is documented.\n\n    snmpwalk -v2c -c public <target_ip> 1.3.6.1.2.1.1\n\nA full `nmap -sV -sC` against each host you discover will tell you almost everything you need to infer its role — a web server looks different from a mail server, which looks different from a database server, purely by the ports and banners it shows you."
-  }, {
-    "title" : "Build the Inventory",
-    "level_type" : "TRAINING_LEVEL",
-    "order" : 3,
-    "estimated_duration" : 30,
-    "minimal_possible_solve_time" : 12,
-    "answer" : "Shared",
-    "answer_variable_name" : null,
-    "content" : "Start from nothing. Build the picture yourself.\n\nYour objectives for this level:\n\n* Identify your own address and the internal subnet you're on. Your workstation has more than one interface: one belongs to the platform's management network and is out of scope, the other is the network you are assessing. Work out which is which before you scan anything.\n* Sweep the subnet and count how many hosts actually respond.\n* Run a full service scan against every host you find and infer each one's likely role purely from the ports and banners it exposes — a web server, a mail server, a database, and so on.\n* One host exposes a file share that can be listed with no credentials at all — no login, no password, nothing. Find it.\n\nSubmit the **name of that share** as your answer for this stage. You only need to list it — you do not need to connect to it or retrieve anything from it.\n\n*Note: the knowledge-check after this level draws on what you observe across every host, not just the one with the exposed share — scan broadly, not just enough to find the flag.*",
-    "solution" : "* Find your subnet — `ip addr` → pentest VM 192.168.56.10 on 192.168.56.0/24.\n* Sweep for hosts — `sudo nmap -sn 192.168.56.0/24` → ten addresses reply: the seven target hosts, your own workstation, the gateway, and one address belonging to the platform itself.\n* Scan every host you find — `sudo nmap -sV -sC <ip>` for each address discovered. Two hosts show SMB (port 445) among their services.\n* Check each for anonymous SMB access — `smbclient -L //<ip> -N` on each of the two. One refuses without credentials; the other lists a share called `Shared` with no authentication required at all.\n\n**Answer: Shared**",
-    "solution_penalized" : true,
-    "hints" : [ {
-      "title" : "Know Where You Stand",
-      "content" : "Before scanning anything, confirm your own address and which subnet you're actually on. You will see more than one interface. One is the platform's own management network and is not part of the assessment \u2014 scanning it tells you nothing about the client. The lab network is the other one.\n\nUseful command: `ip addr`.",
-      "hint_penalty" : 2,
-      "order" : 0
-    }, {
-      "title" : "Count Before You Scan",
-      "content" : "Sweep the subnet for live hosts before running deep scans against individual addresses — it tells you how many targets you're really dealing with.\n\nUseful command: `sudo nmap -sn <subnet>`. Run it with sudo — an unprivileged sweep cannot use ARP and will miss any host that does not answer on tcp/80 or tcp/443.",
-      "hint_penalty" : 5,
-      "order" : 1
-    }, {
-      "title" : "Profile Every Host",
-      "content" : "Run a full version/script scan against every address you discovered. You don't have a role for any of them yet — the open ports and service banners are the only source of truth you have.\n\nUseful command: `nmap -sV -sC <ip>` — repeat for every host from your sweep.",
-      "hint_penalty" : 8,
-      "order" : 2
-    }, {
-      "title" : "A Share With No Lock",
-      "content" : "More than one host in this network runs SMB. Only one of them will let you list its shares with no credentials whatsoever. Try a null session against each.\n\nUseful command: `smbclient -L //<target_ip> -N`.",
-      "hint_penalty" : 10,
-      "order" : 3
-    } ],
-    "incorrect_answer_limit" : 5,
-    "attachments" : [ ],
-    "max_score" : 50,
-    "variant_answers" : false,
-    "reference_solution" : [ ],
-    "mitre_techniques" : [ {
-      "technique_key" : "TA0007.T1046"
-    }, {
-      "technique_key" : "TA0007.T1016"
-    }, {
-      "technique_key" : "TA0007.T1135"
-    }, {
-      "technique_key" : "TA0007.T1018"
-    } ],
-    "expected_commands" : [ "smbclient", "nmap" ],
-    "commands_required" : false
-  }, {
-    "title" : "Knowledge Check",
-    "level_type" : "ASSESSMENT_LEVEL",
-    "order" : 4,
-    "estimated_duration" : 10,
-    "minimal_possible_solve_time" : 5,
-    "questions" : [ {
-      "question_type" : "MCQ",
-      "text" : "How many addresses replied to your sweep of 192.168.56.0/24, counting every reply including your own workstation and the gateway?",
-      "points" : 5,
-      "penalty" : 0,
-      "order" : 0,
-      "answer_required" : true,
-      "choices" : [ {
-        "text" : "7",
-        "correct" : false,
-        "order" : 0
-      }, {
-        "text" : "8",
-        "correct" : false,
-        "order" : 1
-      }, {
-        "text" : "10",
-        "correct" : true,
-        "order" : 2
-      }, {
-        "text" : "12",
-        "correct" : false,
-        "order" : 3
-      } ]
-    }, {
-      "question_type" : "FFQ",
-      "text" : "What is the Common Name (CN) on the HTTPS certificate served by 192.168.56.58?",
-      "points" : 5,
-      "penalty" : 0,
-      "order" : 1,
-      "answer_required" : true,
-      "choices" : [ {
-        "text" : "web01.cadmus.local",
-        "correct" : true,
-        "order" : 0
-      }, {
-        "text" : "WEB01.cadmus.local",
-        "correct" : true,
-        "order" : 1
-      }, {
-        "text" : "web01.cadmus.local.",
-        "correct" : true,
-        "order" : 2
-      }, {
-        "text" : "WEB01.CADMUS.LOCAL",
-        "correct" : true,
-        "order" : 3
-      } ]
-    }, {
-      "question_type" : "MCQ",
-      "text" : "What is the newest TLS protocol version supported by 192.168.56.58?",
-      "points" : 5,
-      "penalty" : 0,
-      "order" : 2,
-      "answer_required" : true,
-      "choices" : [ {
-        "text" : "TLSv1.0",
-        "correct" : false,
-        "order" : 0
-      }, {
-        "text" : "TLSv1.1",
-        "correct" : false,
-        "order" : 1
-      }, {
-        "text" : "TLSv1.2",
-        "correct" : false,
-        "order" : 2
-      }, {
-        "text" : "TLSv1.3",
-        "correct" : true,
-        "order" : 3
-      } ]
-    }, {
-      "question_type" : "FFQ",
-      "text" : "What is the name of the Git repository exposed on 192.168.56.75's Git service (port 9418)?",
-      "points" : 5,
-      "penalty" : 0,
-      "order" : 3,
-      "answer_required" : true,
-      "choices" : [ {
-        "text" : "web-inventory.git",
-        "correct" : true,
-        "order" : 0
-      }, {
-        "text" : "web-inventory",
-        "correct" : true,
-        "order" : 1
-      }, {
-        "text" : "Web-Inventory.git",
-        "correct" : true,
-        "order" : 2
-      }, {
-        "text" : "WEB-INVENTORY.GIT",
-        "correct" : true,
-        "order" : 3
-      } ]
-    }, {
-      "question_type" : "FFQ",
-      "text" : "192.168.56.75's FTP service allows anonymous login. What flag did you retrieve from README.txt on that share?",
-      "points" : 5,
-      "penalty" : 0,
-      "order" : 4,
-      "answer_required" : true,
-      "choices" : [ {
-        "text" : "cadmus{4n0nym0u5_ftp_3n4bl3d}",
-        "correct" : true,
-        "order" : 0
-      }, {
-        "text" : "CADMUS{4N0NYM0U5_FTP_3N4BL3D}",
-        "correct" : true,
-        "order" : 1
-      } ]
-    }, {
-      "question_type" : "MCQ",
-      "text" : "What mail transfer agent software is running on the host at 192.168.56.127?",
-      "points" : 5,
-      "penalty" : 0,
-      "order" : 5,
-      "answer_required" : true,
-      "choices" : [ {
-        "text" : "Sendmail",
-        "correct" : false,
-        "order" : 0
-      }, {
-        "text" : "Postfix",
-        "correct" : true,
-        "order" : 1
-      }, {
-        "text" : "Exim",
-        "correct" : false,
-        "order" : 2
-      }, {
-        "text" : "Microsoft Exchange",
-        "correct" : false,
-        "order" : 3
-      } ]
-    }, {
-      "question_type" : "FFQ",
-      "text" : "192.168.56.186 exposes a metrics endpoint on port 9100 with no authentication. What secret value did it leak?",
-      "points" : 5,
-      "penalty" : 0,
-      "order" : 6,
-      "answer_required" : true,
-      "choices" : [ {
-        "text" : "cadmus{m3tr1cs_r3v34l_s3cr3ts}",
-        "correct" : true,
-        "order" : 0
-      }, {
-        "text" : "CADMUS{M3TR1CS_R3V34L_S3CR3TS}",
-        "correct" : true,
-        "order" : 1
-      } ]
-    }, {
-      "question_type" : "MCQ",
-      "text" : "How many SSH encryption algorithms are supported by the host running PostgreSQL (192.168.56.152)?",
-      "points" : 5,
-      "penalty" : 0,
-      "order" : 7,
-      "answer_required" : true,
-      "choices" : [ {
-        "text" : "6",
-        "correct" : true,
-        "order" : 0
-      }, {
-        "text" : "4",
-        "correct" : false,
-        "order" : 1
-      }, {
-        "text" : "5",
-        "correct" : false,
-        "order" : 2
-      }, {
-        "text" : "8",
-        "correct" : false,
-        "order" : 3
-      } ]
-    }, {
-      "question_type" : "MCQ",
-      "text" : "Per nmap's OS fingerprinting, what is 192.168.56.201 most likely running?",
-      "points" : 5,
-      "penalty" : 0,
-      "order" : 8,
-      "answer_required" : true,
-      "choices" : [ {
-        "text" : "Ubuntu Server 22.04",
-        "correct" : false,
-        "order" : 0
-      }, {
-        "text" : "FreeBSD 13",
-        "correct" : false,
-        "order" : 1
-      }, {
-        "text" : "Microsoft Windows Server 2019",
-        "correct" : true,
-        "order" : 2
-      }, {
-        "text" : "Microsoft Windows 10",
-        "correct" : false,
-        "order" : 3
-      } ]
-    }, {
-      "question_type" : "FFQ",
-      "text" : "192.168.56.201 exposes an RDP service. What target/computer name does it report?",
-      "points" : 5,
-      "penalty" : 0,
-      "order" : 9,
-      "answer_required" : true,
-      "choices" : [ {
-        "text" : "FILE01",
-        "correct" : true,
-        "order" : 0
-      }, {
-        "text" : "file01",
-        "correct" : true,
-        "order" : 1
-      }, {
-        "text" : "File01",
-        "correct" : true,
-        "order" : 2
-      } ]
-    } ],
-    "instructions" : "Answer using what you already found while scanning in the previous level — no new scanning is required. Ten questions cover findings from across every host you enumerated, not just the one with the exposed share. Hosts are referenced by IP, the same way you found them. You have 10 minutes.",
-    "assessment_type" : "TEST"
-  }, {
-    "title" : "Lab Completed",
-    "level_type" : "INFO_LEVEL",
-    "order" : 5,
-    "estimated_duration" : 0,
-    "minimal_possible_solve_time" : null,
-    "content" : "You've completed the Internal Network Scanning & Enumeration lab. Starting from nothing but a subnet, you built a full picture of seven hosts and found a file share that should never have been reachable without credentials — a straightforward listing command, not an exploit. This kind of gap is one of the most common and most valuable findings in an internal engagement, and it never requires more than careful, thorough enumeration to surface. Head back to the LMS to continue the course."
-  } ],
-  "estimated_duration" : 43,
-  "variant_sandboxes" : false
+  "title": "CR-18 / Module 2 / N2c — Internal Network Enumeration",
+  "description": "Sweep a flat internal network from scratch, fingerprint every exposed service across seven undocumented hosts, and work through four separate credential-free routes in. Concludes with a short knowledge check on the hosts mapped along the way.",
+  "prerequisites": [
+    "Comfort using a Linux shell",
+    "Basic familiarity with TCP/IP networking (subnets, ports, common services)",
+    "No prior nmap experience required — covered in the background level"
+  ],
+  "outcomes": [
+    "Perform host discovery across an internal subnet with no prior documentation",
+    "Identify running services, versions and host roles from scan output alone",
+    "Recognise credential-free exposures: anonymous authentication, unauthenticated endpoints and null-session file shares",
+    "Run non-default NSE scripts to retrieve service detail a default scan does not show",
+    "Build an accurate asset inventory purely from active scanning"
+  ],
+  "state": "UNRELEASED",
+  "levels": [
+    {
+      "title": "Introduction level",
+      "level_type": "INFO_LEVEL",
+      "order": 0,
+      "estimated_duration": 0,
+      "minimal_possible_solve_time": null,
+      "content": "Welcome to the Internal Network Scanning & Enumeration lab.\n\nThe client has asked for an internal asset assessment. Their IT team admits they don't have a reliable, up-to-date inventory of what's actually running on their internal network — no host list, no service map, nothing you can trust. You're building that picture from nothing but your own scanning.\n\nYou'll start by working out where you are and what is alive on the segment. From there you'll work through four separate ways into a system that need no credentials at all: a service that accepts an anonymous login, an endpoint that answers anyone who asks, a detail the server only gives up if you ask the right question, and a file share that was never meant to be readable. A short knowledge check at the end covers the hosts you mapped along the way.\n\nTwo background levels give you the tool syntax — one before the sweep, one before you start interrogating individual services. Allow roughly 50 minutes for the whole lab."
+    },
+    {
+      "title": "Get Access",
+      "level_type": "ACCESS_LEVEL",
+      "order": 1,
+      "estimated_duration": 0,
+      "minimal_possible_solve_time": null,
+      "passkey": "start-training",
+      "cloud_content": "In the topology panel on the right, right-click **pentestvm** and select **Open Console**. Log in with username **user** and password **Password123**.\n\n\nOnce you're connected, submit the passkey **start-training** to unlock the next level.",
+      "local_content": "This sandbox has not been validated for local-only deployment."
+    },
+    {
+      "title": "Background — finding what is there",
+      "level_type": "INFO_LEVEL",
+      "order": 2,
+      "estimated_duration": 3,
+      "minimal_possible_solve_time": null,
+      "content": "No asset list is provided for this exercise — building one is the exercise. This level covers only what you need in order to find the hosts. Interrogating them comes later, with its own background level.\n\n## Where you are\n\n    ip addr                                # your interfaces and their addresses\n    ip route                               # which network goes where\n\nYour workstation is attached to more than one network. One of them belongs to the platform that runs this lab and is not part of the assessment.\n\n## What is alive\n\n    sudo nmap -sn <subnet>                 # host discovery, no ports touched\n    sudo nmap -Pn -p <ports> <target_ip>   # skip discovery entirely and scan anyway\n\nRun the sweep with `sudo`. An unprivileged sweep cannot send ARP and quietly falls back to probing tcp/80 and tcp/443, which misses any host that does not happen to answer on those ports."
+    },
+    {
+      "title": "Map the segment",
+      "level_type": "TRAINING_LEVEL",
+      "order": 3,
+      "estimated_duration": 8,
+      "minimal_possible_solve_time": 2,
+      "answer": "10",
+      "answer_variable_name": null,
+      "content": "Start from nothing.\n\nYour workstation has more than one network interface. One belongs to the platform's own management network and is out of scope — scanning it tells you nothing about the client. The other is the network you have been asked to assess. Work out which is which before you touch anything.\n\nThen sweep that subnet and count what answers.\n\nSubmit the **number of addresses that replied** to your sweep. Count every reply, including your own workstation and the gateway.",
+      "solution": "* `ip addr` → two interfaces. One sits on the platform's management network; the other is on `192.168.56.0/24`, with your workstation at `192.168.56.10`.\n* `sudo nmap -sn 192.168.56.0/24` → ten addresses reply: the seven target hosts, your own workstation, the gateway at `.1`, and one address belonging to the platform itself.\n\n**Answer: 10**",
+      "solution_penalized": true,
+      "hints": [
+        {
+          "title": "Know Where You Stand",
+          "content": "Confirm your own address and which subnet you are actually on before scanning anything. You will see more than one interface. One is the platform's own management network and is not part of the assessment — scanning it tells you nothing about the client.\n\nUseful command: `ip addr`.",
+          "hint_penalty": 5,
+          "order": 0
+        },
+        {
+          "title": "Sweep With Privilege",
+          "content": "Run the sweep with `sudo`. An unprivileged sweep cannot send ARP and silently misses any host that does not answer on tcp/80 or tcp/443 — including both Windows machines on this segment.\n\nUseful command: `sudo nmap -sn <subnet>`.",
+          "hint_penalty": 8,
+          "order": 1
+        }
+      ],
+      "incorrect_answer_limit": 5,
+      "attachments": [],
+      "max_score": 30,
+      "variant_answers": false,
+      "reference_solution": [],
+      "mitre_techniques": [
+        {
+          "technique_key": "TA0007.T1016"
+        },
+        {
+          "technique_key": "TA0007.T1018"
+        }
+      ],
+      "expected_commands": [
+        "ip",
+        "nmap"
+      ],
+      "commands_required": false
+    },
+    {
+      "title": "Background — interrogating services",
+      "level_type": "INFO_LEVEL",
+      "order": 4,
+      "estimated_duration": 4,
+      "minimal_possible_solve_time": null,
+      "content": "You have a list of live hosts. Now find out what each one is and what it will tell you.\n\n## Fingerprinting\n\n    sudo nmap -sV -sC <target_ip>          # version detection + default scripts\n    sudo nmap -O <target_ip>               # OS fingerprinting\n    sudo nmap -sU -p <range> <target_ip>   # UDP (slow — narrow the range first)\n\n## Scripts that -sC will not run for you\n\n`-sC` is shorthand for nmap's **default** script category. Many of the most informative scripts are not in it, and you will never see their output unless you name them:\n\n    sudo nmap -p <port> --script <script-name> <target_ip>\n\n`ssh2-enum-algos`, for instance, lists exactly which algorithms an SSH server is prepared to negotiate. `-sC` alone will not show you that.\n\n## Talking to individual services\n\n    curl http://<target_ip>:<port>/        # full response body\n    curl -I http://<target_ip>/            # headers only\n\n    ftp <target_ip>                        # many servers accept the account name\n                                           # `anonymous` with a blank password\n\n    smbclient -L //<target_ip> -N          # list shares, -N = null session\n\n    snmpwalk -v2c -c public <target_ip> 1.3.6.1.2.1.1\n                                           # try the default community `public`\n\nListing SMB shares does not require connecting to any of them or downloading anything."
+    },
+    {
+      "title": "Login without a password",
+      "level_type": "TRAINING_LEVEL",
+      "order": 5,
+      "estimated_duration": 8,
+      "minimal_possible_solve_time": 3,
+      "answer": null,
+      "answer_variable_name": "ftp_flag",
+      "content": "Several services on this network were configured without much thought for who can reach them. One of them will let you in without a password at all — the account name is a convention rather than a secret.\n\nFind that service, log in, and look at what it is serving.\n\nSubmit the flag you find there.",
+      "solution": "* A service scan shows `192.168.56.75` running FTP on tcp/21. nmap's `ftp-anon` script is in the default category, so `-sC` already reports that anonymous login is allowed.\n* `ftp 192.168.56.75` — username `anonymous`, blank password.\n* `ls` shows `README.txt`. `get README.txt`, then `bye`.\n* `cat README.txt` — the flag is on the second line.\n\nThe flag is generated per sandbox, so it differs between trainees.",
+      "solution_penalized": true,
+      "hints": [
+        {
+          "title": "Which Service Takes No Password",
+          "content": "Look back through your scan results for a service that is well known for accepting a conventional account name with no password at all. One of nmap's default scripts will already have flagged it for you if you ran `-sC`.",
+          "hint_penalty": 5,
+          "order": 0
+        },
+        {
+          "title": "Log In And Look Around",
+          "content": "Connect with `ftp <target_ip>`, log in as `anonymous` with a blank password, then list the directory and retrieve what you find.\n\n`ls`, then `get README.txt`, then `bye` — read the file once you are back on your own machine.",
+          "hint_penalty": 8,
+          "order": 1
+        }
+      ],
+      "incorrect_answer_limit": 5,
+      "attachments": [],
+      "max_score": 30,
+      "variant_answers": true,
+      "reference_solution": [],
+      "mitre_techniques": [
+        {
+          "technique_key": "TA0007.T1046"
+        },
+        {
+          "technique_key": "TA0007.T1083"
+        }
+      ],
+      "expected_commands": [
+        "nmap",
+        "ftp"
+      ],
+      "commands_required": false
+    },
+    {
+      "title": "Services that ask nothing",
+      "level_type": "TRAINING_LEVEL",
+      "order": 6,
+      "estimated_duration": 8,
+      "minimal_possible_solve_time": 2,
+      "answer": null,
+      "answer_variable_name": "metrics_flag",
+      "content": "Not every exposure needs a login to be a finding. One host on this segment runs a small monitoring stack, and part of it answers anyone who connects — no authentication, no session, nothing. It exists to be scraped by the monitoring server and was never meant to face anyone else.\n\nThat same host also runs SNMP with a community string nobody changed from the default. Walking it is worth your time, even though the flag is not there.\n\nFind the endpoint that asks nothing of you, and submit the flag it discloses.",
+      "solution": "* `sudo nmap -sV -sC 192.168.56.186` shows two HTTP services: a dashboard on tcp/3000 and a metrics endpoint on tcp/9100.\n* `curl http://192.168.56.186:9100/` returns plain text. The flag is in the `info` label on the first line.\n* For completeness: `snmpwalk -v2c -c public 192.168.56.186 1.3.6.1.2.1.1` also returns system information with no credentials — the same class of finding, with no flag attached.\n\nThe flag is generated per sandbox, so it differs between trainees.",
+      "solution_penalized": true,
+      "hints": [
+        {
+          "title": "Not Everything Needs A Login",
+          "content": "One host shows more than one HTTP service in your scan. One is a human-facing dashboard; the other is a machine-facing endpoint meant to be collected from automatically, and it authenticates nobody.",
+          "hint_penalty": 5,
+          "order": 0
+        },
+        {
+          "title": "It Speaks HTTP",
+          "content": "The endpoint answers a plain HTTP GET and replies in plain text. Fetch it directly rather than through a browser.\n\nUseful command: `curl http://<target_ip>:<port>/`.",
+          "hint_penalty": 8,
+          "order": 1
+        }
+      ],
+      "incorrect_answer_limit": 5,
+      "attachments": [],
+      "max_score": 30,
+      "variant_answers": true,
+      "reference_solution": [],
+      "mitre_techniques": [
+        {
+          "technique_key": "TA0007.T1046"
+        }
+      ],
+      "expected_commands": [
+        "nmap",
+        "curl"
+      ],
+      "commands_required": false
+    },
+    {
+      "title": "Ask the right question",
+      "level_type": "TRAINING_LEVEL",
+      "order": 7,
+      "estimated_duration": 6,
+      "minimal_possible_solve_time": 2,
+      "answer": "chacha20-poly1305@openssh.com",
+      "answer_variable_name": null,
+      "content": "`nmap -sC` runs only the scripts in nmap's **default** category. Plenty of the most useful ones are not in it, and you will never see their output unless you ask for them by name.\n\nThe database host on this segment also runs SSH. A default scan tells you almost nothing about how that service is configured. Ask nmap the right question and the server will list exactly which algorithms it is prepared to negotiate.\n\nSubmit the **first cipher listed in the server's encryption algorithm list**.",
+      "solution": "* The database host is `192.168.56.152` — a service scan shows PostgreSQL on tcp/5432 alongside SSH on tcp/22.\n* `sudo nmap -p 22 --script ssh2-enum-algos 192.168.56.152`\n* The `encryption_algorithms` block lists six entries, in the server's order of preference. The first is `chacha20-poly1305@openssh.com`.\n\n**Answer: chacha20-poly1305@openssh.com**",
+      "solution_penalized": true,
+      "hints": [
+        {
+          "title": "Default Is Not Everything",
+          "content": "`-sC` is shorthand for the `default` script category. Any other script can be run with `--script <name>`. The one you want enumerates what an SSH server will negotiate.",
+          "hint_penalty": 5,
+          "order": 0
+        },
+        {
+          "title": "The Script You Want",
+          "content": "Run `sudo nmap -p 22 --script ssh2-enum-algos <target_ip>` and read the `encryption_algorithms` block. The list is in the server's order of preference — the answer is the entry at the top.",
+          "hint_penalty": 8,
+          "order": 1
+        }
+      ],
+      "incorrect_answer_limit": 5,
+      "attachments": [],
+      "max_score": 30,
+      "variant_answers": false,
+      "reference_solution": [],
+      "mitre_techniques": [
+        {
+          "technique_key": "TA0007.T1046"
+        }
+      ],
+      "expected_commands": [
+        "nmap"
+      ],
+      "commands_required": false
+    },
+    {
+      "title": "File access with no login",
+      "level_type": "TRAINING_LEVEL",
+      "order": 8,
+      "estimated_duration": 10,
+      "minimal_possible_solve_time": 3,
+      "answer": "Shared",
+      "answer_variable_name": null,
+      "content": "Two hosts on this segment speak SMB. One of them is configured the way you would hope. The other will list its shares to an anonymous session — no username, no password, no negotiation.\n\nFind the host that answers, and name the share it exposes.\n\nYou only need to list it. You do not need to connect to it or retrieve anything from it.",
+      "solution": "* A service scan across the segment shows tcp/445 open on `192.168.56.201` and `192.168.56.247`.\n* `smbclient -L //192.168.56.201 -N` is refused — that host requires credentials.\n* `smbclient -L //192.168.56.247 -N` returns the share list with no authentication at all. Alongside the administrative shares it exposes one named `Shared`.\n\n**Answer: Shared**",
+      "solution_penalized": true,
+      "hints": [
+        {
+          "title": "Two Hosts Speak SMB",
+          "content": "Your service scan shows tcp/445 open on exactly two addresses. Only one of them will answer an unauthenticated request — try both and compare what comes back.",
+          "hint_penalty": 5,
+          "order": 0
+        },
+        {
+          "title": "Null Session",
+          "content": "A null session is a connection made with no credentials whatsoever. `smbclient` does this with `-N`.\n\nUseful command: `smbclient -L //<target_ip> -N`.",
+          "hint_penalty": 8,
+          "order": 1
+        }
+      ],
+      "incorrect_answer_limit": 5,
+      "attachments": [],
+      "max_score": 30,
+      "variant_answers": false,
+      "reference_solution": [],
+      "mitre_techniques": [
+        {
+          "technique_key": "TA0007.T1135"
+        }
+      ],
+      "expected_commands": [
+        "nmap",
+        "smbclient"
+      ],
+      "commands_required": false
+    },
+    {
+      "title": "Knowledge Check",
+      "level_type": "ASSESSMENT_LEVEL",
+      "order": 9,
+      "estimated_duration": 5,
+      "minimal_possible_solve_time": 2,
+      "questions": [
+        {
+          "question_type": "FFQ",
+          "text": "What Common Name (CN) is on the HTTPS certificate served by 192.168.56.58?",
+          "points": 10,
+          "penalty": 0,
+          "order": 0,
+          "answer_required": true,
+          "choices": [
+            {
+              "text": "web01.cadmus.local",
+              "correct": true,
+              "order": 0
+            },
+            {
+              "text": "WEB01.cadmus.local",
+              "correct": true,
+              "order": 1
+            },
+            {
+              "text": "web01.cadmus.local.",
+              "correct": true,
+              "order": 2
+            },
+            {
+              "text": "WEB01.CADMUS.LOCAL",
+              "correct": true,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "question_type": "MCQ",
+          "text": "What mail transfer agent is running on the host at 192.168.56.127?",
+          "points": 10,
+          "penalty": 0,
+          "order": 1,
+          "answer_required": true,
+          "choices": [
+            {
+              "text": "Postfix",
+              "correct": true,
+              "order": 0
+            },
+            {
+              "text": "Exim",
+              "correct": false,
+              "order": 1
+            },
+            {
+              "text": "Sendmail",
+              "correct": false,
+              "order": 2
+            },
+            {
+              "text": "qmail",
+              "correct": false,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "question_type": "MCQ",
+          "text": "Per nmap's OS fingerprinting, what is 192.168.56.201 most likely running?",
+          "points": 10,
+          "penalty": 0,
+          "order": 2,
+          "answer_required": true,
+          "choices": [
+            {
+              "text": "Microsoft Windows Server 2019",
+              "correct": true,
+              "order": 0
+            },
+            {
+              "text": "Microsoft Windows 10",
+              "correct": false,
+              "order": 1
+            },
+            {
+              "text": "Microsoft Windows Server 2016",
+              "correct": false,
+              "order": 2
+            },
+            {
+              "text": "Ubuntu 24.04 LTS",
+              "correct": false,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "question_type": "FFQ",
+          "text": "192.168.56.201 exposes an RDP service. What computer name does it report?",
+          "points": 10,
+          "penalty": 0,
+          "order": 3,
+          "answer_required": true,
+          "choices": [
+            {
+              "text": "FILE01",
+              "correct": true,
+              "order": 0
+            },
+            {
+              "text": "file01",
+              "correct": true,
+              "order": 1
+            },
+            {
+              "text": "File01",
+              "correct": true,
+              "order": 2
+            }
+          ]
+        },
+        {
+          "question_type": "FFQ",
+          "text": "What is the name of the Git repository exposed by the development host at 192.168.56.75?",
+          "points": 10,
+          "penalty": 0,
+          "order": 4,
+          "answer_required": true,
+          "choices": [
+            {
+              "text": "web-inventory.git",
+              "correct": true,
+              "order": 0
+            },
+            {
+              "text": "web-inventory",
+              "correct": true,
+              "order": 1
+            },
+            {
+              "text": "Web-Inventory.git",
+              "correct": true,
+              "order": 2
+            },
+            {
+              "text": "WEB-INVENTORY.GIT",
+              "correct": true,
+              "order": 3
+            }
+          ]
+        }
+      ],
+      "instructions": "Five questions on the hosts you mapped during the exercise. Everything here is readable from scan output you have already produced — no new scanning is needed. If you did not keep your results, re-run `sudo nmap -sV -sC` against the address in question.",
+      "assessment_type": "TEST"
+    },
+    {
+      "title": "Lab Completed",
+      "level_type": "INFO_LEVEL",
+      "order": 10,
+      "estimated_duration": 0,
+      "minimal_possible_solve_time": null,
+      "content": "You've completed the Internal Network Scanning & Enumeration lab.\n\nStarting from nothing but a workstation on an undocumented segment, you mapped ten live addresses, identified seven target hosts from their services alone, and found four separate ways into systems that asked you for no credentials at all: an anonymous FTP login, an unauthenticated metrics endpoint, an SSH configuration that only gave up its detail to a non-default script, and a file share readable by a null session.\n\nNone of that needed an exploit. Every one of those findings came out of careful, thorough enumeration — which is exactly why enumeration is where real engagements are won or lost. Head back to the LMS to continue the course."
+    }
+  ],
+  "estimated_duration": 52,
+  "variant_sandboxes": true
 }
