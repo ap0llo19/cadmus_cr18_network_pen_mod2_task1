@@ -1003,8 +1003,7 @@
       ansible.windows.win_shell: |
         $shares = @(
           "C:\Shares",
-          "C:\Shares\Shared",
-          "C:\Shares\Users"
+          "C:\Shares\Shared"
         )
 
         foreach ($sharePath in $shares) {
@@ -1015,14 +1014,6 @@
 
         Set-Content -Path "C:\Shares\Shared\workstation-info.txt" -Value @"
         WS01 workstation share.
-        cadmus{4n0nym0us_smb_4cc3ss}
-        "@
-
-        Set-Content -Path "C:\Shares\Users\desktop.ini" -Value @"
-        [ViewState]
-        Mode=
-        Vid=
-        FolderType=Generic
         "@
       changed_when: false
 
@@ -1031,9 +1022,6 @@
         icacls "C:\Shares\Shared" /inheritance:e `
           /grant "Everyone:(OI)(CI)RX" `
           /grant "*S-1-5-7:(OI)(CI)RX" `
-          /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
-
-        icacls "C:\Shares\Users" /inheritance:e `
           /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
       changed_when: false
 
@@ -1045,12 +1033,6 @@
             Path = "C:\Shares\Shared"
             Description = "WS01 anonymous shared workstation folder"
             Read = "Everyone"
-          },
-          @{
-            Name = "Users"
-            Path = "C:\Shares\Users"
-            Description = "WS01 authenticated user profile style folder"
-            Read = "cadmus_enum"
           }
         )
 
