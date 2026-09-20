@@ -567,7 +567,7 @@
         - 'myorigin = /etc/mailname'
         - 'inet_interfaces = all'
         - 'inet_protocols = ipv4'
-        - 'smtpd_banner = MAIL01 ESMTP Postfix - CADMUS internal mail gateway'
+        - 'smtpd_banner = $myhostname ESMTP Postfix - CADMUS internal mail gateway'
         - 'disable_vrfy_command = no'
       changed_when: true
       notify: Restart Postfix
