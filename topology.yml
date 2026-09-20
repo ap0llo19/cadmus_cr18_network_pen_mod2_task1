@@ -49,7 +49,7 @@ hosts:
     hidden: true
 
   - name: file01
-    flavor: c2_r4_d40
+    flavor: c2_r8_d40
     base_box:
       image: windows-server-2019-x86_64
       mgmt_user: windows
@@ -57,7 +57,7 @@ hosts:
     hidden: true
 
   - name: ws01
-    flavor: c2_r4_d40
+    flavor: c2_r8_d40
     base_box:
       image: windows-10-x86_64
       mgmt_user: windows
