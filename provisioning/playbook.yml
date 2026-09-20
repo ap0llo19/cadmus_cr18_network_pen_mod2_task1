@@ -75,6 +75,8 @@
       ansible.builtin.hostname:
         name: "{{ inventory_hostname }}"
 
+    # Targets only. Seeding this on pentestvm would hand the trainee the
+    # asset inventory the lab asks them to build by scanning.
     - name: Add internal lab host mappings
       ansible.builtin.blockinfile:
         path: /etc/hosts
@@ -83,6 +85,7 @@
           {% for item in lab_hosts %}
           {{ item.ip }} {{ item.name }} {{ item.alias }}
           {% endfor %}
+      when: inventory_hostname != 'pentestvm'
 
     - name: Configure SSH login banner
       ansible.builtin.copy:
