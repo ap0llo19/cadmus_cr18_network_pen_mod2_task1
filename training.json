@@ -31,7 +31,7 @@
     "title" : "Build the Inventory",
     "level_type" : "TRAINING_LEVEL",
     "order" : 3,
-    "estimated_duration" : 25,
+    "estimated_duration" : 30,
     "minimal_possible_solve_time" : 12,
     "answer" : "Shared",
     "answer_variable_name" : null,
@@ -312,6 +312,6 @@
     "minimal_possible_solve_time" : null,
     "content" : "You've completed the Internal Network Scanning & Enumeration lab. Starting from nothing but a subnet, you built a full picture of ten hosts and found a file share that should never have been reachable without credentials — a straightforward listing command, not an exploit. This kind of gap is one of the most common and most valuable findings in an internal engagement, and it never requires more than careful, thorough enumeration to surface. Head back to the LMS to continue the course."
   } ],
-  "estimated_duration" : 38,
+  "estimated_duration" : 43,
   "variant_sandboxes" : false
 }
