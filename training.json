@@ -36,7 +36,7 @@
     "answer" : "Shared",
     "answer_variable_name" : null,
     "content" : "Start from nothing. Build the picture yourself.\n\nYour objectives for this level:\n\n* Identify your own address and the internal subnet you're on. Your workstation has more than one interface: one belongs to the platform's management network and is out of scope, the other is the network you are assessing. Work out which is which before you scan anything.\n* Sweep the subnet and count how many hosts actually respond.\n* Run a full service scan against every host you find and infer each one's likely role purely from the ports and banners it exposes — a web server, a mail server, a database, and so on.\n* One host exposes a file share that can be listed with no credentials at all — no login, no password, nothing. Find it.\n\nSubmit the **name of that share** as your answer for this stage. You only need to list it — you do not need to connect to it or retrieve anything from it.\n\n*Note: the knowledge-check after this level draws on what you observe across every host, not just the one with the exposed share — scan broadly, not just enough to find the flag.*",
-    "solution" : "* Find your subnet — `ip addr` → pentest VM 192.168.56.10 on 192.168.56.0/24.\n* Sweep for hosts — `sudo nmap -sn 192.168.56.0/24` → seven target hosts respond, plus your own workstation and the gateway.\n* Scan every host you find — `sudo nmap -sV -sC <ip>` for each address discovered. Two hosts show SMB (port 445) among their services.\n* Check each for anonymous SMB access — `smbclient -L //<ip> -N` on each of the two. One refuses without credentials; the other lists a share called `Shared` with no authentication required at all.\n\n**Answer: Shared**",
+    "solution" : "* Find your subnet — `ip addr` → pentest VM 192.168.56.10 on 192.168.56.0/24.\n* Sweep for hosts — `sudo nmap -sn 192.168.56.0/24` → ten addresses reply: the seven target hosts, your own workstation, the gateway, and one address belonging to the platform itself.\n* Scan every host you find — `sudo nmap -sV -sC <ip>` for each address discovered. Two hosts show SMB (port 445) among their services.\n* Check each for anonymous SMB access — `smbclient -L //<ip> -N` on each of the two. One refuses without credentials; the other lists a share called `Shared` with no authentication required at all.\n\n**Answer: Shared**",
     "solution_penalized" : true,
     "hints" : [ {
       "title" : "Know Where You Stand",
@@ -83,14 +83,14 @@
     "minimal_possible_solve_time" : 5,
     "questions" : [ {
       "question_type" : "MCQ",
-      "text" : "Excluding your own workstation and the gateway, how many hosts did your sweep of 192.168.56.0/24 find?",
+      "text" : "How many addresses replied to your sweep of 192.168.56.0/24, counting every reply including your own workstation and the gateway?",
       "points" : 5,
       "penalty" : 0,
       "order" : 0,
       "answer_required" : true,
       "choices" : [ {
         "text" : "7",
-        "correct" : true,
+        "correct" : false,
         "order" : 0
       }, {
         "text" : "8",
@@ -98,7 +98,7 @@
         "order" : 1
       }, {
         "text" : "10",
-        "correct" : false,
+        "correct" : true,
         "order" : 2
       }, {
         "text" : "12",
