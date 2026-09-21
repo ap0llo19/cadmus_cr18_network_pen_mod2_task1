@@ -227,7 +227,7 @@
       "answer": "Shared",
       "answer_variable_name": null,
       "content": "Two hosts on this segment speak SMB. One of them is configured the way you would hope. The other will list its shares to an anonymous session — no username, no password, no negotiation.\n\nFind the host that answers, and name the share it exposes.\n\nYou only need to list it. You do not need to connect to it or retrieve anything from it.",
-      "solution": "* A service scan across the segment shows tcp/445 open on `192.168.56.201` and `192.168.56.247`.\n* `smbclient -L //192.168.56.201 -N` is refused — that host requires credentials.\n* `smbclient -L //192.168.56.247 -N` returns the share list with no authentication at all. Alongside the administrative shares it exposes one named `Shared`.\n\n**Answer: Shared**",
+      "solution": "* A service scan across the segment shows tcp/445 open on `192.168.56.201` and `192.168.56.247`.\n* `smbclient -L //192.168.56.201 -N` is refused — that host requires credentials.\n* `smbclient -L //192.168.56.247 -N` returns the share list with no authentication at all. Alongside the administrative shares - the ones ending in `$` - it exposes one named `Shared`.\n* smbclient then prints `Reconnecting with SMB1 for workgroup listing` followed by a failure. That is expected and harmless: it is a second, separate attempt to enumerate the workgroup over SMB1, which the host has disabled. The share list you need has already been printed above it.\n\n**Answer: Shared**",
       "solution_penalized": true,
       "hints": [
         {
@@ -238,7 +238,7 @@
         },
         {
           "title": "Null Session",
-          "content": "A null session is a connection made with no credentials whatsoever. `smbclient` does this with `-N`.\n\nUseful command: `smbclient -L //<target_ip> -N`.",
+          "content": "A null session is a connection made with no credentials whatsoever. `smbclient` does this with `-N`; leaving the password prompt blank works too.\n\nUseful command: `smbclient -L //<target_ip> -N`.\n\nIgnore the `Unable to connect with SMB1` error at the end — that is a separate workgroup lookup failing, not the share listing. Read the table above it.",
           "hint_penalty": 8,
           "order": 1
         }
