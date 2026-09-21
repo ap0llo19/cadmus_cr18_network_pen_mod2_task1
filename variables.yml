@@ -1,4 +1,14 @@
-# APG variables. This lab does not require generated flags or secrets.
-# The goal is discovery, scanning, enumeration, banner grabbing, NSE usage,
-# and reporting only.
-{}
+# APG variables. See https://docs.platform.cyberrange.cz/user-guide-advanced/sandboxes/apg-variables/
+# Generated per sandbox so the graded flags differ between trainees and cannot
+# be passed between cohorts. The share name in the final level stays fixed:
+# randomising it would cost the realism that makes the finding recognisable.
+
+ftp_flag:
+    type: password
+    length: 16
+    prohibited: ['{', '}', '"', "'", ' ', '\', '/']
+
+metrics_flag:
+    type: password
+    length: 16
+    prohibited: ['{', '}', '"', "'", ' ', '\', '/']

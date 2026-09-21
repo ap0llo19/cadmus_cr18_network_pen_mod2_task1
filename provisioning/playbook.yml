@@ -57,8 +57,9 @@
 
     - name: Wait for any apt/dpkg lock to release
       ansible.builtin.shell: >
-        while fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock
-        /var/cache/apt/archives/lock /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 3; done
+        timeout 300 sh -c 'while fuser /var/lib/dpkg/lock-frontend
+        /var/lib/apt/lists/lock /var/cache/apt/archives/lock
+        /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 3; done'
       changed_when: false
       failed_when: false
 
@@ -75,6 +76,8 @@
       ansible.builtin.hostname:
         name: "{{ inventory_hostname }}"
 
+    # Targets only. Seeding this on pentestvm would hand the trainee the
+    # asset inventory the lab asks them to build by scanning.
     - name: Add internal lab host mappings
       ansible.builtin.blockinfile:
         path: /etc/hosts
@@ -83,6 +86,7 @@
           {% for item in lab_hosts %}
           {{ item.ip }} {{ item.name }} {{ item.alias }}
           {% endfor %}
+      when: inventory_hostname != 'pentestvm'
 
     - name: Configure SSH login banner
       ansible.builtin.copy:
@@ -117,11 +121,20 @@
 
   roles:
     - role: user-access
-      user_access_username: pentester
-      user_access_password: 'pentester'
+      user_access_username: user
+      user_access_password: 'Password123'
       user_access_sudo: true
 
   tasks:
+    # Kali images boot with a stack-prefixed hostname that /etc/hosts does not
+    # resolve, which makes every sudo call emit "unable to resolve host".
+    - name: Ensure /etc/hosts resolves the renamed hostname
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1\b'
+        line: "127.0.1.1 {{ ansible_hostname }}"
+        state: present
+
     - name: Install scanning and enumeration tools
       ansible.builtin.apt:
         name:
@@ -139,10 +152,10 @@
 
     - name: Create trainee working directories
       ansible.builtin.file:
-        path: "/home/pentester/{{ item }}"
+        path: "/home/user/{{ item }}"
         state: directory
-        owner: pentester
-        group: pentester
+        owner: user
+        group: user
         mode: '0755'
       loop:
         - Desktop
@@ -191,7 +204,7 @@
           ServerSignature On
           Header always set X-CADMUS-Asset "WEB01"
           <If "%{SERVER_PORT} == '80'">
-              Header always set Secret-Value "cadmus{h3ad3r_3num3r4t10n}"
+              Header always set Secret-Value "internal-only-do-not-expose"
           </If>
       notify: Restart Apache
 
@@ -352,7 +365,7 @@
         mode: '0644'
         content: |
           DEV01 anonymous FTP archive.
-          cadmus{4n0nym0u5_ftp_3n4bl3d}
+          {{ ftp_flag }}
 
     - name: Configure vsftpd for anonymous read-only access
       ansible.builtin.copy:
@@ -567,7 +580,7 @@
         - 'myorigin = /etc/mailname'
         - 'inet_interfaces = all'
         - 'inet_protocols = ipv4'
-        - 'smtpd_banner = MAIL01 ESMTP Postfix - CADMUS internal mail gateway'
+        - 'smtpd_banner = $myhostname ESMTP Postfix - CADMUS internal mail gateway'
         - 'disable_vrfy_command = no'
       changed_when: true
       notify: Restart Postfix
@@ -718,8 +731,7 @@
         content: |
           from http.server import BaseHTTPRequestHandler, HTTPServer
 
-          METRICS = b"""
-          cadmus_training_service_info{host=\"MON01\",service=\"node-metrics-training\",info=\"cadmus{m3tr1cs_r3v34l_s3cr3ts}\"} 1
+          METRICS = b"""cadmus_training_service_info{host=\"MON01\",service=\"node-metrics-training\",info=\"{{ metrics_flag }}\"} 1
           node_cpu_seconds_total{cpu=\"0\",mode=\"idle\"} 12345
           node_memory_MemAvailable_bytes 536870912
           """
@@ -1000,8 +1012,7 @@
       ansible.windows.win_shell: |
         $shares = @(
           "C:\Shares",
-          "C:\Shares\Shared",
-          "C:\Shares\Users"
+          "C:\Shares\Shared"
         )
 
         foreach ($sharePath in $shares) {
@@ -1012,14 +1023,6 @@
 
         Set-Content -Path "C:\Shares\Shared\workstation-info.txt" -Value @"
         WS01 workstation share.
-        cadmus{4n0nym0us_smb_4cc3ss}
-        "@
-
-        Set-Content -Path "C:\Shares\Users\desktop.ini" -Value @"
-        [ViewState]
-        Mode=
-        Vid=
-        FolderType=Generic
         "@
       changed_when: false
 
@@ -1028,9 +1031,6 @@
         icacls "C:\Shares\Shared" /inheritance:e `
           /grant "Everyone:(OI)(CI)RX" `
           /grant "*S-1-5-7:(OI)(CI)RX" `
-          /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
-
-        icacls "C:\Shares\Users" /inheritance:e `
           /grant "cadmus_enum:(OI)(CI)RX" /T | Out-Null
       changed_when: false
 
@@ -1042,12 +1042,6 @@
             Path = "C:\Shares\Shared"
             Description = "WS01 anonymous shared workstation folder"
             Read = "Everyone"
-          },
-          @{
-            Name = "Users"
-            Path = "C:\Shares\Users"
-            Description = "WS01 authenticated user profile style folder"
-            Read = "cadmus_enum"
           }
         )
 
@@ -1116,10 +1110,13 @@
         data: 1
         type: dword
 
-    - name: Restart SMB server service
-      ansible.windows.win_shell: |
-        Restart-Service -Name LanmanServer -Force
-      changed_when: false
+    # EveryoneIncludesAnonymous and RestrictAnonymous live under Lsa and are
+    # read by LSASS at boot. Restarting LanmanServer reloads the NullSession*
+    # values but not those, so the null session is refused at authentication
+    # before share enumeration is ever reached. Only a reboot applies them.
+    - name: Reboot WS01 so the LSA anonymous-access settings take effect
+      ansible.windows.win_reboot:
+        reboot_timeout: 900
 
     - name: Add WS01 enumeration note
       ansible.windows.win_copy:
