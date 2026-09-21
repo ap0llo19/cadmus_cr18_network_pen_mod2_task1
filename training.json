@@ -39,7 +39,7 @@
       "order": 2,
       "estimated_duration": 3,
       "minimal_possible_solve_time": null,
-      "content": "No asset list is provided for this exercise — building one is the exercise. This level covers only what you need in order to find the hosts. Interrogating them comes later, with its own background level.\n\n## Where you are\n\n    ip addr                                # your interfaces and their addresses\n    ip route                               # which network goes where\n\nYour workstation is attached to more than one network. One of them belongs to the platform that runs this lab and is not part of the assessment.\n\n## What is alive\n\n    sudo nmap -sn <subnet>                 # host discovery, no ports touched\n    sudo nmap -Pn -p <ports> <target_ip>   # skip discovery entirely and scan anyway\n\nRun the sweep with `sudo`. An unprivileged sweep cannot send ARP and quietly falls back to probing tcp/80 and tcp/443, which misses any host that does not happen to answer on those ports."
+      "content": "No asset list is provided for this exercise — building one is the exercise. This level covers only what you need in order to find the hosts. Interrogating them comes later, with its own background level.\n\n## Where you are\n\n    ip addr                                # your interfaces and their addresses\n    ip route                               # which network goes where\n\nYour workstation is attached to more than one network. One of them belongs to the platform that runs this lab and is not part of the assessment.\n\n## What is alive\n\n    sudo nmap -sn <subnet>                 # host discovery, no ports touched\n    sudo nmap -Pn -p <ports> <target_ip>   # skip discovery entirely and scan anyway\n\nThe sweep ends with a summary line giving the total number of addresses that answered. If it feels slow, add `-n` to skip the reverse-DNS lookup nmap does for every host it finds."
     },
     {
       "title": "Map the segment",
@@ -50,7 +50,7 @@
       "answer": "10",
       "answer_variable_name": null,
       "content": "The client's internal server segment is **`192.168.56.0/24`** — the network named in the topology panel, with your own workstation on it at `192.168.56.10`. That is your entire scope.\n\nYour workstation carries a second interface, belonging to the platform that runs this lab. It is not in scope and must not be scanned. Identify it and leave it alone.\n\nSweep the client's range and count what answers.\n\nSubmit the **number of addresses that replied** to your sweep. Count every reply, including your own workstation and the gateway.",
-      "solution": "* The client's range is `192.168.56.0/24`, as named in the topology panel. `ip addr` confirms your workstation at `192.168.56.10` on that segment, alongside a second interface on the platform's management network which is out of scope.\n* `sudo nmap -sn 192.168.56.0/24` → ten addresses reply: the seven target hosts, your own workstation, the gateway at `.1`, and one address belonging to the platform itself.\n* Without `sudo` the sweep cannot send ARP and falls back to probing tcp/80 and tcp/443, which both Windows hosts drop — an unprivileged sweep reports eight, not ten.\n\n**Answer: 10**",
+      "solution": "* The client's range is `192.168.56.0/24`, as named in the topology panel. `ip addr` confirms your workstation at `192.168.56.10` on that segment, alongside a second interface on the platform's management network which is out of scope.\n* `sudo nmap -sn 192.168.56.0/24` → ten addresses reply: the seven target hosts, your own workstation, the gateway at `.1`, and one address belonging to the platform itself.\n\n**Answer: 10**",
       "solution_penalized": true,
       "hints": [
         {
@@ -60,8 +60,8 @@
           "order": 0
         },
         {
-          "title": "Sweep With Privilege",
-          "content": "Run the sweep with `sudo`. An unprivileged sweep cannot send ARP and silently misses any host that does not answer on tcp/80 or tcp/443 — including both Windows machines on this segment.\n\nUseful command: `sudo nmap -sn <subnet>`.",
+          "title": "Read The Summary Line",
+          "content": "A ping sweep prints a line per host as it goes, then a summary at the end:\n\n`Nmap done: 256 IP addresses (N hosts up) scanned in ...`\n\nThat `N` is exactly what this level is asking for.\n\nUseful command: `nmap -sn 192.168.56.0/24`.",
           "hint_penalty": 8,
           "order": 1
         }
