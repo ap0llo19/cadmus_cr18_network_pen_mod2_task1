@@ -731,8 +731,7 @@
         content: |
           from http.server import BaseHTTPRequestHandler, HTTPServer
 
-          METRICS = b"""
-          cadmus_training_service_info{host=\"MON01\",service=\"node-metrics-training\",info=\"{{ metrics_flag }}\"} 1
+          METRICS = b"""cadmus_training_service_info{host=\"MON01\",service=\"node-metrics-training\",info=\"{{ metrics_flag }}\"} 1
           node_cpu_seconds_total{cpu=\"0\",mode=\"idle\"} 12345
           node_memory_MemAvailable_bytes 536870912
           """

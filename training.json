@@ -30,7 +30,7 @@
       "estimated_duration": 0,
       "minimal_possible_solve_time": null,
       "passkey": "start-training",
-      "cloud_content": "Open the Kali desktop on **pentestvm** and log in.\n\n1. In the topology overview on the right, right-click on **`pentestvm`** and choose **`Open GUI`** (or **`Open GUI In New Window`** if you prefer a separate window). The Kali display manager loads in your browser.\n2. Log in with username **`user`** and password **`Password123`**.\n3. Open a terminal from the desktop.\n\nIf you prefer SSH, the setup is documented at https://docs.platform.cyberrange.cz/user-guide-advanced/sandboxes/sandbox-access/#user-access. SSH makes copy-paste easier but takes a few minutes to configure — worth it here, since you will be transcribing generated flags.\n\nWhen you are in, submit **`start-training`** to unlock the next level.",
+      "cloud_content": "Open the Kali desktop on **pentestvm** and log in.\n\n1. In the topology overview on the right, right-click on **`pentestvm`** and choose **`Open GUI`** (or **`Open GUI In New Window`** if you prefer a separate window). The Kali display manager loads in your browser.\n2. Log in with username **`user`** and password **`Password123`**.\n3. Open a terminal from the desktop.\n\nWork from that terminal for this exercise — everything you need is on the Kali box.\n\nWhen you are in, submit **`start-training`** to unlock the next level.",
       "local_content": "This sandbox has not been validated for local-only deployment."
     },
     {
@@ -145,8 +145,8 @@
       "minimal_possible_solve_time": 2,
       "answer": null,
       "answer_variable_name": "metrics_flag",
-      "content": "Not every exposure needs a login to be a finding. One host on this segment runs a small monitoring stack, and part of it answers anyone who connects — no authentication, no session, nothing. It exists to be scraped by the monitoring server and was never meant to face anyone else.\n\nThat same host also runs SNMP with a community string nobody changed from the default. Walking it is worth your time, even though the flag is not there.\n\nFind the endpoint that asks nothing of you, and submit the flag it discloses.",
-      "solution": "* `sudo nmap -sV -sC 192.168.56.186` shows two HTTP services: a dashboard on tcp/3000 and a metrics endpoint on tcp/9100.\n* `curl http://192.168.56.186:9100/` returns plain text. The flag is in the `info` label on the first line.\n* For completeness: `snmpwalk -v2c -c public 192.168.56.186 1.3.6.1.2.1.1` also returns system information with no credentials — the same class of finding, with no flag attached.\n\nThe flag is generated per sandbox, so it differs between trainees.",
+      "content": "Not every exposure needs a login to be a finding. One host on this segment runs a small monitoring stack, and part of it answers anyone who connects — no authentication, no session, nothing. It exists to be scraped by the monitoring server and was never meant to face anyone else.\n\nRead your scan output carefully here. When nmap will not probe a port, it falls back to guessing the service from the port number alone, and that guess can be badly wrong. A name in the service column is not evidence of what is actually listening.\n\nThat same host also runs SNMP with a community string nobody changed from the default. Walking it is worth your time, even though the flag is not there.\n\nFind the endpoint that asks nothing of you, and submit the flag it discloses.",
+      "solution": "* `sudo nmap -sV -sC 192.168.56.186` shows a dashboard on tcp/3000 and an open tcp/9100 labelled `jetdirect`. That label is a guess from the port number: nmap ships an exclusion for tcp/9100-9107 so version probes never reach printers, so nothing on that port was actually probed.\n* `sudo nmap -sV --allports -p 9100 192.168.56.186` overrides the exclusion and identifies it properly, or just fetch it directly.\n* `curl http://192.168.56.186:9100/` returns plain text. The flag is in the `info` label on the first metric line.\n* For completeness: `snmpwalk -v2c -c public 192.168.56.186 1.3.6.1.2.1.1` also returns system information with no credentials — the same class of finding, with no flag attached.\n\nThe flag is generated per sandbox, so it differs between trainees.",
       "solution_penalized": true,
       "hints": [
         {
@@ -157,7 +157,7 @@
         },
         {
           "title": "It Speaks HTTP",
-          "content": "The endpoint answers a plain HTTP GET and replies in plain text. Fetch it directly rather than through a browser.\n\nUseful command: `curl http://<target_ip>:<port>/`.",
+          "content": "nmap never ran version detection against this port. It sits inside the tcp/9100-9107 range nmap excludes by default, so that probes cannot make a networked printer spew paper — which means the service name you see is a guess from the port number, not a finding. It is not a printer.\n\nFetch it and see for yourself: `curl http://<target_ip>:<port>/`. `sudo nmap -sV --allports -p <port> <target_ip>` overrides the exclusion if you would rather nmap told you.",
           "hint_penalty": 8,
           "order": 1
         }
@@ -382,37 +382,37 @@
           ]
         },
         {
-          "question_type": "FFQ",
-          "text": "What is the name of the Git repository exposed by the development host at 192.168.56.75?",
+          "question_type": "MCQ",
+          "text": "On which TCP port does the development host at 192.168.56.75 expose its Git daemon?",
           "points": 10,
           "penalty": 0,
           "order": 4,
           "answer_required": true,
           "choices": [
             {
-              "text": "web-inventory.git",
+              "text": "9418",
               "correct": true,
               "order": 0
             },
             {
-              "text": "web-inventory",
-              "correct": true,
+              "text": "3690",
+              "correct": false,
               "order": 1
             },
             {
-              "text": "Web-Inventory.git",
-              "correct": true,
+              "text": "8080",
+              "correct": false,
               "order": 2
             },
             {
-              "text": "WEB-INVENTORY.GIT",
-              "correct": true,
+              "text": "9100",
+              "correct": false,
               "order": 3
             }
           ]
         }
       ],
-      "instructions": "Five questions on the hosts you mapped during the exercise. Everything here is readable from scan output you have already produced — no new scanning is needed. If you did not keep your results, re-run `sudo nmap -sV -sC` against the address in question.",
+      "instructions": "Five questions on the hosts you mapped during the exercise, all answerable from scan output. If you did not keep your results, `sudo nmap -sV -sC -O <ip>` against the address in question returns everything these ask for.",
       "assessment_type": "TEST"
     },
     {
