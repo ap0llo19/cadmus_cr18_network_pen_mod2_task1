@@ -49,13 +49,13 @@
       "minimal_possible_solve_time": 2,
       "answer": "10",
       "answer_variable_name": null,
-      "content": "Start from nothing.\n\nYour workstation has more than one network interface. One belongs to the platform's own management network and is out of scope — scanning it tells you nothing about the client. The other is the network you have been asked to assess. Work out which is which before you touch anything.\n\nThen sweep that subnet and count what answers.\n\nSubmit the **number of addresses that replied** to your sweep. Count every reply, including your own workstation and the gateway.",
-      "solution": "* `ip addr` → two interfaces. One sits on the platform's management network; the other is on `192.168.56.0/24`, with your workstation at `192.168.56.10`.\n* `sudo nmap -sn 192.168.56.0/24` → ten addresses reply: the seven target hosts, your own workstation, the gateway at `.1`, and one address belonging to the platform itself.\n\n**Answer: 10**",
+      "content": "The client's internal server segment is **`192.168.56.0/24`** — the network named in the topology panel, with your own workstation on it at `192.168.56.10`. That is your entire scope.\n\nYour workstation carries a second interface, belonging to the platform that runs this lab. It is not in scope and must not be scanned. Identify it and leave it alone.\n\nSweep the client's range and count what answers.\n\nSubmit the **number of addresses that replied** to your sweep. Count every reply, including your own workstation and the gateway.",
+      "solution": "* The client's range is `192.168.56.0/24`, as named in the topology panel. `ip addr` confirms your workstation at `192.168.56.10` on that segment, alongside a second interface on the platform's management network which is out of scope.\n* `sudo nmap -sn 192.168.56.0/24` → ten addresses reply: the seven target hosts, your own workstation, the gateway at `.1`, and one address belonging to the platform itself.\n* Without `sudo` the sweep cannot send ARP and falls back to probing tcp/80 and tcp/443, which both Windows hosts drop — an unprivileged sweep reports eight, not ten.\n\n**Answer: 10**",
       "solution_penalized": true,
       "hints": [
         {
-          "title": "Know Where You Stand",
-          "content": "Confirm your own address and which subnet you are actually on before scanning anything. You will see more than one interface. One is the platform's own management network and is not part of the assessment — scanning it tells you nothing about the client.\n\nUseful command: `ip addr`.",
+          "title": "Count Everything That Answers",
+          "content": "The question asks how many addresses replied, not how many of them turn out to be interesting. Your own workstation sits inside the range and answers. So does the gateway. So may an address belonging to the platform's own infrastructure rather than the client's. All of them count.",
           "hint_penalty": 5,
           "order": 0
         },
