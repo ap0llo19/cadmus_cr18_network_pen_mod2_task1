@@ -305,23 +305,23 @@
           "answer_required": true,
           "choices": [
             {
-              "text": "Postfix",
-              "correct": true,
-              "order": 0
-            },
-            {
               "text": "Exim",
               "correct": false,
-              "order": 1
+              "order": 0
             },
             {
               "text": "Sendmail",
               "correct": false,
-              "order": 2
+              "order": 1
             },
             {
               "text": "qmail",
               "correct": false,
+              "order": 2
+            },
+            {
+              "text": "Postfix",
+              "correct": true,
               "order": 3
             }
           ]
@@ -335,23 +335,23 @@
           "answer_required": true,
           "choices": [
             {
-              "text": "Microsoft Windows Server 2019",
-              "correct": true,
-              "order": 0
-            },
-            {
               "text": "Microsoft Windows 10",
               "correct": false,
-              "order": 1
+              "order": 0
             },
             {
               "text": "Microsoft Windows Server 2016",
               "correct": false,
-              "order": 2
+              "order": 1
             },
             {
               "text": "Ubuntu 24.04 LTS",
               "correct": false,
+              "order": 2
+            },
+            {
+              "text": "Microsoft Windows Server 2019",
+              "correct": true,
               "order": 3
             }
           ]
@@ -390,23 +390,23 @@
           "answer_required": true,
           "choices": [
             {
-              "text": "9418",
-              "correct": true,
-              "order": 0
-            },
-            {
               "text": "3690",
               "correct": false,
-              "order": 1
+              "order": 0
             },
             {
               "text": "8080",
               "correct": false,
-              "order": 2
+              "order": 1
             },
             {
               "text": "9100",
               "correct": false,
+              "order": 2
+            },
+            {
+              "text": "9418",
+              "correct": true,
               "order": 3
             }
           ]
