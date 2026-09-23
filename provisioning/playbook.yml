@@ -11,7 +11,7 @@
 #     SMB/SNMP/RDP/SSH/FTP/SMTP enumeration, and reporting only.
 #
 # Lab hosts:
-#   pentestvm  192.168.56.10   trainee workstation
+#   vma  192.168.56.10   trainee workstation
 #   WEB01      192.168.56.58   HTTP/HTTPS web server
 #   DEV01      192.168.56.75   SSH/FTP/Git/development portal
 #   MAIL01     192.168.56.127  SMTP mail server
@@ -21,17 +21,50 @@
 #   WS01       192.168.56.247  Windows MSRPC/SMB/WinRM workstation
 
 # ----------------------------------------------------------------------------
+#  man - the sandbox management node. It is not in topology.yml; the platform
+#  adds it to the generated inventory. Every trainee SSH and GUI session is
+#  brokered through it, so an unattended upgrade firing mid-lab can stall or
+#  drop those sessions.
+# ----------------------------------------------------------------------------
+- name: Disable apt auto-update on the management node
+  hosts: man
+  become: true
+
+  tasks:
+    - name: Disable unattended upgrades in apt periodic config
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          APT::Periodic::Update-Package-Lists "0";
+          APT::Periodic::Unattended-Upgrade "0";
+
+    - name: Disable apt daily timers
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+        masked: true
+      loop:
+        - apt-daily.timer
+        - apt-daily-upgrade.timer
+      failed_when: false
+
+
+# ----------------------------------------------------------------------------
 # Common baseline
 # ----------------------------------------------------------------------------
 - name: Common baseline for all lab machines
-  hosts: pentestvm:web01:dev01:mail01:db01:mon01
+  hosts: vma:web01:dev01:mail01:db01:mon01
   become: true
   gather_facts: true
 
   vars:
     lab_domain: cadmus.local
     lab_hosts:
-      - { ip: "192.168.56.10", name: "pentestvm", alias: "PENTESTVM pentest" }
+      - { ip: "192.168.56.10", name: "vma", alias: "VMA" }
       - { ip: "192.168.56.58", name: "web01", alias: "WEB01 web01.cadmus.local" }
       - { ip: "192.168.56.75", name: "dev01", alias: "DEV01 dev01.cadmus.local" }
       - { ip: "192.168.56.127", name: "mail01", alias: "MAIL01 mail01.cadmus.local" }
@@ -76,7 +109,7 @@
       ansible.builtin.hostname:
         name: "{{ inventory_hostname }}"
 
-    # Targets only. Seeding this on pentestvm would hand the trainee the
+    # Targets only. Seeding this on vma would hand the trainee the
     # asset inventory the lab asks them to build by scanning.
     - name: Add internal lab host mappings
       ansible.builtin.blockinfile:
@@ -86,7 +119,7 @@
           {% for item in lab_hosts %}
           {{ item.ip }} {{ item.name }} {{ item.alias }}
           {% endfor %}
-      when: inventory_hostname != 'pentestvm'
+      when: inventory_hostname != 'vma'
 
     - name: Configure SSH login banner
       ansible.builtin.copy:
@@ -104,6 +137,25 @@
         line: 'Banner /etc/issue.net'
       notify: Restart SSH
 
+    # nmap opens a connection per NSE script - ssh-hostkey and ssh2-enum-algos
+    # each get their own, on top of the -sV probe. The stock 10:30:100 starts
+    # dropping unauthenticated connections past ten, and a dropped one is closed
+    # before the identification string, which surfaces as
+    # "kex_exchange_identification: read: Connection reset by peer" and a failed
+    # ssh-hostkey script. On a one-vCPU host each handshake is slow enough that
+    # they pile up, and several trainees scanning at once makes it worse.
+    - name: Raise the unauthenticated connection limit for scanning
+      ansible.builtin.copy:
+        content: |
+          MaxStartups 100:30:200
+          MaxSessions 50
+        dest: /etc/ssh/sshd_config.d/10-lab.conf
+        owner: root
+        group: root
+        mode: '0644'
+        validate: /usr/sbin/sshd -t -f %s
+      notify: Restart SSH
+
     - name: Ensure SSH is running
       ansible.builtin.systemd:
         name: ssh
@@ -112,10 +164,10 @@
 
 
 # ----------------------------------------------------------------------------
-# PENTESTVM - trainee workstation
+# VMA - trainee workstation
 # ----------------------------------------------------------------------------
-- name: Provision pentestvm (attacker)
-  hosts: pentestvm
+- name: Provision vma (attacker)
+  hosts: vma
   become: true
   gather_facts: true
 
@@ -128,6 +180,16 @@
   tasks:
     # Kali images boot with a stack-prefixed hostname that /etc/hosts does not
     # resolve, which makes every sudo call emit "unable to resolve host".
+    # The base image ships '127.0.1.1 kali.kali kali'. The platform renames the
+    # host, so that alias is stale, and the task below manages only its own line -
+    # which leaves two 127.0.1.1 entries and tells anyone who reads /etc/hosts that
+    # this is a stock Kali image rather than a company workstation.
+    - name: Drop the base image's leftover 127.0.1.1 alias
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1\s+kali'
+        state: absent
+
     - name: Ensure /etc/hosts resolves the renamed hostname
       ansible.builtin.lineinfile:
         path: /etc/hosts
@@ -803,7 +865,7 @@
 
   vars:
     lab_hosts:
-      - { ip: "192.168.56.10", name: "pentestvm", alias: "PENTESTVM pentest" }
+      - { ip: "192.168.56.10", name: "vma", alias: "VMA" }
       - { ip: "192.168.56.58", name: "web01", alias: "WEB01 web01.cadmus.local" }
       - { ip: "192.168.56.75", name: "dev01", alias: "DEV01 dev01.cadmus.local" }
       - { ip: "192.168.56.127", name: "mail01", alias: "MAIL01 mail01.cadmus.local" }

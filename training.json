@@ -29,8 +29,8 @@
       "order": 1,
       "estimated_duration": 0,
       "minimal_possible_solve_time": null,
-      "passkey": "start-training",
-      "cloud_content": "Open the Kali desktop on **pentestvm** and log in.\n\n1. In the topology overview on the right, right-click on **`pentestvm`** and choose **`Open GUI`** (or **`Open GUI In New Window`** if you prefer a separate window). The Kali display manager loads in your browser.\n2. Log in with username **`user`** and password **`Password123`**.\n3. Open a terminal from the desktop.\n\nWork from that terminal for this exercise — everything you need is on the Kali box.\n\nWhen you are in, submit **`start-training`** to unlock the next level.",
+      "passkey": "start",
+      "cloud_content": "Open the Kali desktop on **vma** and log in.\n\n1. In the topology overview on the right, right-click on **`vma`** and choose **`Open GUI`** (or **`Open GUI In New Window`** if you prefer a separate window). The Kali display manager loads in your browser.\n2. Log in with username **`user`** and password **`Password123`**.\n3. Open a terminal from the desktop.\n\nWork from that terminal for this exercise — everything you need is on the Kali box.\n\nWhen you are in, submit **`start`** to unlock the next level.",
       "local_content": "This sandbox has not been validated for local-only deployment."
     },
     {
@@ -102,7 +102,7 @@
       "answer": null,
       "answer_variable_name": "ftp_flag",
       "content": "Several services on this network were configured without much thought for who can reach them. One of them will let you in without a password at all — the account name is a convention rather than a secret.\n\nFind that service, log in, and look at what it is serving.\n\nSubmit the flag you find there.",
-      "solution": "* A service scan shows `192.168.56.75` running FTP on tcp/21. nmap's `ftp-anon` script is in the default category, so `-sC` already reports that anonymous login is allowed.\n* `ftp 192.168.56.75` — username `anonymous`, blank password.\n* `ls` shows `README.txt`. `get README.txt`, then `bye`.\n* `cat README.txt` — the flag is on the second line.\n\nThe flag is generated per sandbox, so it differs between trainees.",
+      "solution": "* A service scan shows `192.168.56.75` running FTP on tcp/21. nmap's `ftp-anon` script is in the default category, so `-sC` already reports that anonymous login is allowed.\n* `ftp 192.168.56.75` — username `anonymous`, blank password.\n* `ls` shows `README.txt`. `get README.txt`, then `bye`.\n* `cat README.txt` — the flag is on the second line.\n\n**Answer: `${ANSWER}`** - generated per sandbox, so it differs between trainees.",
       "solution_penalized": true,
       "hints": [
         {
@@ -146,7 +146,7 @@
       "answer": null,
       "answer_variable_name": "metrics_flag",
       "content": "Not every exposure needs a login to be a finding. One host on this segment runs a small monitoring stack, and part of it answers anyone who connects — no authentication, no session, nothing. It exists to be scraped by the monitoring server and was never meant to face anyone else.\n\nRead your scan output carefully here. When nmap will not probe a port it falls back to guessing the service from the port number alone, and it marks that guess with a trailing **`?`**. A name with a question mark after it is not a finding - it is nmap telling you it never checked. That guess can be badly wrong.\n\nThat same host also runs SNMP with a community string nobody changed from the default. Walking it is worth your time, even though the flag is not there.\n\nFind the endpoint that asks nothing of you. It answers with a short block of metrics rather than a page: the flag is the value of the **`info`** label on the first line. Submit that value on its own, without the surrounding quotes.",
-      "solution": "* `sudo nmap -sV -sC 192.168.56.186` shows a dashboard on tcp/3000 and an open tcp/9100 labelled `jetdirect?`. The question mark is the tell: nmap ships an exclusion for tcp/9100-9107 so that version probes never reach printers, so it never checked that port and fell back to naming it from the port-number table.\n* `sudo nmap -sV --allports -p 9100 192.168.56.186` overrides the exclusion and identifies it properly, or just fetch it directly.\n* `curl http://192.168.56.186:9100/` returns plain text. The flag is in the `info` label on the first metric line.\n* For completeness: `snmpwalk -v2c -c public 192.168.56.186 1.3.6.1.2.1.1` also returns system information with no credentials — the same class of finding, with no flag attached.\n\nThe flag is generated per sandbox, so it differs between trainees.",
+      "solution": "* `sudo nmap -sV -sC 192.168.56.186` shows a dashboard on tcp/3000 and an open tcp/9100 labelled `jetdirect?`. The question mark is the tell: nmap ships an exclusion for tcp/9100-9107 so that version probes never reach printers, so it never checked that port and fell back to naming it from the port-number table.\n* `sudo nmap -sV --allports -p 9100 192.168.56.186` overrides the exclusion and identifies it properly, or just fetch it directly.\n* `curl http://192.168.56.186:9100/` returns plain text. The flag is in the `info` label on the first metric line.\n* For completeness: `snmpwalk -v2c -c public 192.168.56.186 1.3.6.1.2.1.1` also returns system information with no credentials — the same class of finding, with no flag attached.\n\n**Answer: `${ANSWER}`** - generated per sandbox, so it differs between trainees.",
       "solution_penalized": true,
       "hints": [
         {
@@ -305,23 +305,23 @@
           "answer_required": true,
           "choices": [
             {
-              "text": "Postfix",
-              "correct": true,
-              "order": 0
-            },
-            {
               "text": "Exim",
               "correct": false,
-              "order": 1
+              "order": 0
             },
             {
               "text": "Sendmail",
               "correct": false,
-              "order": 2
+              "order": 1
             },
             {
               "text": "qmail",
               "correct": false,
+              "order": 2
+            },
+            {
+              "text": "Postfix",
+              "correct": true,
               "order": 3
             }
           ]
@@ -335,23 +335,23 @@
           "answer_required": true,
           "choices": [
             {
-              "text": "Microsoft Windows Server 2019",
-              "correct": true,
-              "order": 0
-            },
-            {
               "text": "Microsoft Windows 10",
               "correct": false,
-              "order": 1
+              "order": 0
             },
             {
               "text": "Microsoft Windows Server 2016",
               "correct": false,
-              "order": 2
+              "order": 1
             },
             {
               "text": "Ubuntu 24.04 LTS",
               "correct": false,
+              "order": 2
+            },
+            {
+              "text": "Microsoft Windows Server 2019",
+              "correct": true,
               "order": 3
             }
           ]
@@ -390,23 +390,23 @@
           "answer_required": true,
           "choices": [
             {
-              "text": "9418",
-              "correct": true,
-              "order": 0
-            },
-            {
               "text": "3690",
               "correct": false,
-              "order": 1
+              "order": 0
             },
             {
               "text": "8080",
               "correct": false,
-              "order": 2
+              "order": 1
             },
             {
               "text": "9100",
               "correct": false,
+              "order": 2
+            },
+            {
+              "text": "9418",
+              "correct": true,
               "order": 3
             }
           ]
