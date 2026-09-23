@@ -14,7 +14,7 @@ than guessed.
 | Node      | Image                      | IP              | Role |
 | --------- | -------------------------- | --------------- | ---- |
 | router    | debian-12-x86_64           | 192.168.56.1    | LAN gateway. Not a target. |
-| pentestvm | kali-2026.1-x86_64         | 192.168.56.10   | Trainee workstation. |
+| vma       | kali-2026.1-x86_64         | 192.168.56.10   | Trainee workstation. |
 | web01     | ubuntu-noble-x86_64        | 192.168.56.58   | Apache on 80/443. Self-signed cert (`CN=web01.cadmus.local`), status page, robots.txt. |
 | dev01     | ubuntu-noble-x86_64        | 192.168.56.75   | vsftpd with anonymous read, `git daemon` on 9418 serving `web-inventory.git`, dev portal on 8080. |
 | mail01    | ubuntu-noble-x86_64        | 192.168.56.127  | Postfix on 25. |
@@ -23,7 +23,7 @@ than guessed.
 | file01    | windows-server-2019-x86_64 | 192.168.56.201  | SMB, RDP and WinRM. Shares require credentials. |
 | ws01      | windows-10-x86_64          | 192.168.56.247  | SMB. The `Shared` share is listable and readable anonymously. RDP is switched off. |
 
-`pentestvm` runs on `c2_r4_d30` (Kali's image sets a 25 GiB `min_disk`, so `standard.small` is not an option). `file01` and `ws01` run on `c2_r8_d40`; everything else is `standard.small`.
+`vma` runs on `c2_r4_d30` (Kali's image sets a 25 GiB `min_disk`, so `standard.small` is not an option). `file01` and `ws01` run on `c2_r8_d40`; everything else is `standard.small`.
 
 ## Provisioning
 
@@ -32,9 +32,9 @@ then one play per target:
 
 - **baseline** — disables unattended upgrades, installs common packages, sets
   hostnames, writes an SSH login banner, and seeds `/etc/hosts` on the targets
-  only. `pentestvm` is deliberately excluded from that last task: seeding it
+  only. `vma` is deliberately excluded from that last task: seeding it
   there would hand the trainee the inventory the lab asks them to build.
-- **pentestvm** — installs the scanning toolset and provisions the trainee
+- **vma** — installs the scanning toolset and provisions the trainee
   login `user` / `Password123` (sudo) via the `user-access` role.
 - **web01 / dev01 / mail01 / db01 / mon01** — deploy the services above.
 - **file01 / ws01** — set hostnames, configure SMB, and on `ws01` relax the LSA
@@ -48,7 +48,7 @@ collection, declared in `provisioning/requirements.yml`.
 Eleven levels, 200 points, roughly 50 minutes. Five graded hands-on levels,
 then a short knowledge check.
 
-1. Open the Kali desktop on **pentestvm** (`Open GUI`) and log in as `user` / `Password123`.
+1. Open the Kali desktop on **vma** (`Open GUI`) and log in as `user` / `Password123`.
 2. *Background* — locating yourself and sweeping.
 3. **Map the segment** — pick the lab interface out of the two present, sweep
    it, submit the number of addresses that reply (10: seven targets, the

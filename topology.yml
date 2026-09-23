@@ -1,6 +1,6 @@
 name: cr-18-n2c-internal-enumeration
 hosts:
-  - name: pentestvm
+  - name: vma
     flavor: c2_r4_d30
     base_box:
       image: kali-2026.1-x86_64
@@ -84,7 +84,7 @@ wan:
   cidr: 10.10.10.0/24
 
 net_mappings:
-  - host: pentestvm
+  - host: vma
     network: internal-lan
     ip: 192.168.56.10
   - host: web01
